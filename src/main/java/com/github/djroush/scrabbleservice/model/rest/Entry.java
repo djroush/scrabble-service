@@ -1,4 +1,4 @@
-package com.github.djroush.scrabbleservice.model.dictionary;
+package com.github.djroush.scrabbleservice.model.rest;
 
 public class Entry {
 	private String word;

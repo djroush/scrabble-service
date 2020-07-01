@@ -12,7 +12,7 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.github.djroush.scrabbleservice.model.dictionary.AnagramDictionary;
+import com.github.djroush.scrabbleservice.model.rest.AnagramDictionary;
 
 @Component
 public class AnagramDictionaryDeserializer extends StdDeserializer<AnagramDictionary> {

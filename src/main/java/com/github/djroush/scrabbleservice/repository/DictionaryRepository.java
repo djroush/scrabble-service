@@ -8,7 +8,7 @@ import java.util.Collections;
 import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.djroush.scrabbleservice.model.dictionary.AnagramDictionary;
+import com.github.djroush.scrabbleservice.model.rest.AnagramDictionary;
 
 public class DictionaryRepository {
 	private List<String> wordList;

@@ -7,7 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
-import com.github.djroush.scrabbleservice.model.dictionary.Anagram;
+import com.github.djroush.scrabbleservice.model.rest.Anagram;
 import com.github.djroush.scrabbleservice.repository.DictionaryRepository;
 
 @Service

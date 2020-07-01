@@ -7,8 +7,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.github.djroush.scrabbleservice.model.dictionary.Entry;
-import com.github.djroush.scrabbleservice.model.dictionary.Anagram;
+import com.github.djroush.scrabbleservice.model.rest.Anagram;
+import com.github.djroush.scrabbleservice.model.rest.Entry;
 import com.github.djroush.scrabbleservice.service.DictionaryService;
 
 @RestController

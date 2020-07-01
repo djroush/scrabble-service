@@ -89,4 +89,7 @@ public class Game {
 	public void setActivePlayerCount(int activePlayerCount) {
 		this.activePlayerCount = activePlayerCount;
 	}
+	public void setPlayers(List<Player> players) {
+		this.players = players;
+	}
 }

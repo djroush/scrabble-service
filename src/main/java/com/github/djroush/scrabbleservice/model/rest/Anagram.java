@@ -1,4 +1,4 @@
-package com.github.djroush.scrabbleservice.model.dictionary;
+package com.github.djroush.scrabbleservice.model.rest;
 
 import java.util.List;
 

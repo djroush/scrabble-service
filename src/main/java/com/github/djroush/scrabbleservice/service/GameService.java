@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Optional;
+import java.util.Set;
 import java.util.SortedSet;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,19 +14,19 @@ import com.github.djroush.scrabbleservice.exception.GameAlreadyStartedException;
 import com.github.djroush.scrabbleservice.exception.GameFullException;
 import com.github.djroush.scrabbleservice.exception.GameNotActiveException;
 import com.github.djroush.scrabbleservice.exception.IncorrectPlayerCountException;
-import com.github.djroush.scrabbleservice.exception.PlayerCannotStartGameException;
 import com.github.djroush.scrabbleservice.exception.TurnOutofOrderException;
 import com.github.djroush.scrabbleservice.exception.UnknownGameException;
 import com.github.djroush.scrabbleservice.exception.UnknownPlayerException;
 import com.github.djroush.scrabbleservice.model.Board;
 import com.github.djroush.scrabbleservice.model.Game;
 import com.github.djroush.scrabbleservice.model.GameState;
+import com.github.djroush.scrabbleservice.model.PlayedTile;
 import com.github.djroush.scrabbleservice.model.Player;
 import com.github.djroush.scrabbleservice.model.Rack;
-import com.github.djroush.scrabbleservice.model.Square;
 import com.github.djroush.scrabbleservice.model.Tile;
 import com.github.djroush.scrabbleservice.model.TileBag;
 import com.github.djroush.scrabbleservice.model.Turn;
+import com.github.djroush.scrabbleservice.model.rest.Square;
 import com.github.djroush.scrabbleservice.repository.GameRepository;
 
 @Service
@@ -38,13 +39,17 @@ public class GameService {
 	@Autowired
 	private BoardService boardService;
 	@Autowired
-	private TileService tileService;
+	private TileBagService tileService;
+	@Autowired 
+	private TurnService turnService;
+	
 	@Autowired
 	private GameRepository gameRepository;
 	
 	public Game newGame(String playerName) {
 		final Game game = new Game();
 		game.setTileBag(new TileBag());
+		game.setBoard(new Board());
 //		final String gameId = UUID.randomUUID().toString();
 		final String gameId = "6AME1";
 		
@@ -68,8 +73,6 @@ public class GameService {
 	public Game addPlayer(String gameId, String playerName) {
 		Game game = find(gameId);
 		game = addPlayer(game, playerName);
-
-		update(game);
 		return game;
 	}
 	
@@ -88,7 +91,9 @@ public class GameService {
 		player.setName(playerName);
 		player.setRack(new Rack());
 		players.add(player);
-		game.setTurnIterator(players.listIterator());
+		game.setPlayers(players);
+		
+		update(game);
 		return game;
 	}
 	
@@ -103,22 +108,23 @@ public class GameService {
 		return game;
 	}
 	
-	public Game start(String gameId, String startingPlayerId) {
+	public Game start(String gameId) {
 		final Game game = find(gameId);
 		verifyPending(game);
 		final int numberOfPlayers = game.getPlayers().size();
 		if (numberOfPlayers < MIN_PLAYERS) {
 			throw new IncorrectPlayerCountException();
 		}
-		final Player startingPlayer = findPlayer(game, startingPlayerId);
-		if (startingPlayer == null) {
-			throw new PlayerCannotStartGameException();
-		}
 		//TODO: grab tiles for all the players
 		TileBag tileBag = game.getTileBag();
-		game.getPlayers()
+		
+		List<Player> players = game.getPlayers();
+		game.setTurnIterator(players.listIterator());
+		players
 			.forEach(player -> tileService.fillRack(tileBag, player.getRack()));
 		game.setState(GameState.ACTIVE);
+		
+		game.setPlayerCurrentlyUp(upNext(game));
 		update(game);
 		return game;
 	}
@@ -128,6 +134,7 @@ public class GameService {
 	//START ACTIVE GAME ACTIONS
 	public Game awaitUpdate(String gameId, String playerId) {
 		//Put pub sub stuff here?
+
 		
 		//TODO players who are awaiting their turn can call this! 
 		return null;
@@ -138,56 +145,95 @@ public class GameService {
 		verifyActive(game);
 		final Player player = findPlayer(game, playerId);
 		isPlayerTurn(game, player);
+		
 		int skipTurnCount = player.getSkipTurnCount();
 		Turn turn = null;
-		if (skipTurnCount > 0 || player.getIsForfeited()) {
+		if (skipTurnCount > 0) {
 			player.setSkipTurnCount(skipTurnCount - 1);
-			turn = boardService.skipTurn(player, game.getLastTurn());
+			turn = turnService.skipTurn(player, game.getLastTurn());
 		} else {
 			final Board board = game.getBoard();
 			boardService.checkMoveValid(board, squares);
-			turn = boardService.executeTurn(player, board, squares);
-			//TODO calculate score, wait for challenge clear before pulling new letters?
-			//Move this to a different area and have a two part turn?
-			final TileBag tileBag = game.getTileBag();
-			final Rack rack = player.getRack();
-			tileService.fillRack(tileBag, rack); 
+			boardService.execute(board,  squares);
+			List<Set<Square>> adjoinedSquaresList = boardService.getAdjoinedSquares(board, squares);
+			turn = turnService.playTurn(player, squares, adjoinedSquaresList);
 		}
 		
 		game.setLastTurn(turn);
-		
-		Player upNext = upNext(game);
-		game.setPlayerCurrentlyUp(upNext);
-
-		if (player.getRack().getTiles().size() == 0) {
-//			triggerEndGame();
-		} 
-		
+		upNext(game);
 		update(game);
+
+		//TODO: wait for a challenge before drawing new letters, remove ENDGAME state?
+		//TODO: figure out where this will go!
+		final Rack rack = player.getRack();
+		List<Tile> tiles = rack.getTiles();
+		
+		squares.forEach(square -> {
+			final PlayedTile playedTile = square.getTile();
+			final Tile tile = playedTile.getTile();
+			tiles.remove(tile);
+		});
+		
+		final TileBag tileBag = game.getTileBag();
+		
+		tileService.fillRack(tileBag, rack);
+		if (rack.getTiles().size() == 0) {
+			game.setState(GameState.ENDGAME);
+			//do something else here?
+		} 
+		player.setRack(rack);
+		
 		return game;
 	}
-
 
 	public Game passTurn(String gameId, String playerId) {
-		final SortedSet<Tile> NO_TILES = Collections.emptySortedSet();
-		final Game game = exchange(gameId, playerId, NO_TILES, true);
+		final Game game = find(gameId);
+		verifyActive(game);
+		final Player player = findPlayer(game, playerId);
+		isPlayerTurn(game, player);
+		int skipTurnCount = player.getSkipTurnCount();
+		Turn turn = null;
+		if (skipTurnCount > 0) {
+			player.setSkipTurnCount(skipTurnCount - 1);
+			turn = turnService.skipTurn(player, game.getLastTurn());
+		} else {
+			turn = new Turn();
+			turn.setSquares(Collections.emptySortedSet());
+			turn.setPlayer(player);
+			turn.setWordsPlayed(Collections.emptyList());
+			turn.setScore(0);
+		}
 		
-		//TODO: create a turn here
-		
+		game.setLastTurn(turn);
+		upNext(game);
 		update(game);
 		return game;
 	}
 
-	public Game exchange(String gameId, String playerId, SortedSet<Tile> tiles, boolean isPass) {
-		Game game = find(gameId);
+	public Game exchange(String gameId, String playerId, List<Tile> tiles) {
+		final Game game = find(gameId);
 		verifyActive(game);
-		
-		//TODO: implement exchange logic,  add BagService
-
-		
-		if (!isPass) {
-			update(game);
+		final Player player = findPlayer(game, playerId);
+		isPlayerTurn(game, player);
+		int skipTurnCount = player.getSkipTurnCount();
+		Turn turn = null;
+		if (skipTurnCount > 0) {
+			player.setSkipTurnCount(skipTurnCount - 1);
+			turn = turnService.skipTurn(player, game.getLastTurn());
+		} else {
+			final Rack rack = player.getRack();
+			final TileBag tileBag = game.getTileBag();
+			tileService.fillRack(tileBag, rack);
+			turn = new Turn();
+			turn.setSquares(Collections.emptySortedSet());
+			turn.setPlayer(player);
+			turn.setWordsPlayed(Collections.emptyList());
+			turn.setScore(0);
 		}
+		game.setLastTurn(turn);
+		upNext(game);
+		update(game);
+		//TODO: need to create a turn somewhere
 		return game;
 	}
 	
@@ -208,13 +254,14 @@ public class GameService {
 		}
 		
 		if (wordsValid) {
-			boardService.reverseLastTurn(game);
+			turnService.reverseLastTurn(game);
 		} else {
 			Player player = findPlayer(game, challengingPlayerId);
 			int skipTurnCount = player.getSkipTurnCount();
 			player.setSkipTurnCount(skipTurnCount+1);
+//			Turn thisTurn = turnService.createTurn(player);
 		}
-
+		
 		update(game);
 		return game;
 	}
@@ -272,14 +319,14 @@ public class GameService {
 	private Player upNext(Game game) {		
 		ListIterator<Player> turnIterator = game.getTurnIterator();
 		List<Player> players = game.getPlayers();
-		boolean hasNext = turnIterator.hasNext();
 		Player playerUpNow = null;
 		do { //Reset to beginning of list
+			boolean hasNext = turnIterator.hasNext();
 			if (!hasNext) {  
 				turnIterator = players.listIterator();
 			}
 			playerUpNow = turnIterator.next();
-	    } while (!playerUpNow.getIsForfeited());
+	    } while (playerUpNow.getIsForfeited());
 
 		game.setPlayerCurrentlyUp(playerUpNow);
 		return playerUpNow;
@@ -300,8 +347,8 @@ public class GameService {
 	}
 	
 	private Game update(Game game) {
-		int turnNumber = game.getTurnNumber();
 		if (game.getState() == GameState.ACTIVE) {
+			int turnNumber = game.getTurnNumber();
 			game.setTurnNumber(turnNumber+1);
 		}
 		Turn turn = game.getLastTurn();

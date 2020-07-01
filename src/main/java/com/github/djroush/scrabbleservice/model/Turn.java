@@ -1,26 +1,21 @@
 package com.github.djroush.scrabbleservice.model;
 
 import java.util.List;
+import java.util.SortedSet;
+
+import com.github.djroush.scrabbleservice.model.rest.Square;
 
 public class Turn {
-	private List<Square> squares;
-	private Direction direction;
+	private SortedSet<Square> squares;
 	private List<String> wordsPlayed;
 	private Player player;
 	private int score;
 	
-	public List<Square> getSquares() {
+	public SortedSet<Square> getSquares() {
 		return squares;
 	}
-	public void setSquares(List<Square> squares) {
+	public void setSquares(SortedSet<Square> squares) {
 		this.squares = squares;
-	}
-	
-	public Direction getDirection() {
-		return direction;
-	}
-	public void setDirection(Direction direction) {
-		this.direction = direction;
 	}
 	public List<String> getWordsPlayed() {
 		return wordsPlayed;
