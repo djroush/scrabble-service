@@ -154,7 +154,7 @@ public class GameService {
 		} else {
 			final Board board = game.getBoard();
 			boardService.checkMoveValid(board, squares);
-			boardService.execute(board,  squares);
+			boardService.playSquares(board,  squares);
 			List<Set<Square>> adjoinedSquaresList = boardService.getAdjoinedSquares(board, squares);
 			turn = turnService.playTurn(player, squares, adjoinedSquaresList);
 		}

@@ -25,7 +25,7 @@ public class Board {
 		}
 	}
 
-	public void setSquare(Square square) {
+	public void addSquare(Square square) {
 		int row = square.getRow();
 		int col = square.getCol();
 		int index=row*WIDTH+col;

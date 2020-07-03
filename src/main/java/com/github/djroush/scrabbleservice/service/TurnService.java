@@ -30,11 +30,11 @@ public class TurnService {
 			int wordScore = 0;
 			final StringBuilder sb = new StringBuilder();
 			for (Square square: squareWord) {
-				final PlayedTile tile = square.getTile();
+				final PlayedTile playedTile = square.getTile();
 				final ScoreModifier sm =  playedSquares.contains(square) ? 
 					getScoreModifier(square) : ScoreModifier.SINGLE_LETTER; 
 						
-				int letterValue = tile.getValue();
+				int letterValue = playedTile.getTile().getValue();
 				switch (sm) {
 				case TRIPLE_WORD: wordMultiplier *= 3; break;
 				case DOUBLE_WORD: wordMultiplier *= 2; break;
@@ -44,10 +44,10 @@ public class TurnService {
 				case ZERO_LETTER:  letterValue *= 0; break;
 				}
 				
-				if (!tile.isBlank()) {
+				if (!playedTile.isBlank()) {
 				    wordScore += letterValue;
 				}
-				sb.append(tile.toString());
+				sb.append(playedTile.toString());
 			}
 			wordScore *= wordMultiplier;
 			turnScore += wordScore;

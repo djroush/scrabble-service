@@ -43,4 +43,8 @@ public class Square implements Comparable<Square> {
 		
 		return Integer.compare(index,  oindex);
 	}
+	
+	public String toString() {
+		return "(" + row + "," + col + ") = " + tile.getLetter();
+	}
 }
