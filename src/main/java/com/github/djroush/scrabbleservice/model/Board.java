@@ -12,6 +12,7 @@ public class Board {
 	public static final int CENTER = 7;
 	public static final int WIDTH = 15;
 	public static final int HEIGHT = 15;
+	public static final int MIN_WORD_LENGTH = 2;
 	
 	private final List<Square> squares;
 	

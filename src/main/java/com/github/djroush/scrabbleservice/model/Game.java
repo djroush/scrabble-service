@@ -12,11 +12,11 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 public class Game {
 	public final static int MAX_PLAYERS = 4;
 
-	String id;
-	GameState state;
-	Turn lastTurn;
-	Board board;
-	TileBag tileBag;
+	private String id;
+	private GameState state;
+	private Turn lastTurn;
+	private Board board;
+	private TileBag tileBag;
 	int consecutiveScorelessTurns = 0;
 	int turnNumber = 0;
 	int activePlayerCount = 0;
@@ -44,9 +44,11 @@ public class Game {
 	public void setBoard(Board board) {
 		this.board = board;
 	}
+	@JsonIgnore
 	public TileBag getTileBag() {
 		return tileBag;
 	}
+	@JsonIgnore
 	public void setTileBag(TileBag tileBag) {
 		this.tileBag = tileBag;
 	}

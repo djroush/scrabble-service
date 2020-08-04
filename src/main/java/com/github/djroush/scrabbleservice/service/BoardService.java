@@ -56,11 +56,9 @@ public class BoardService {
 		
 		boolean colsMatch = true;
 		boolean rowsMatch = true;
-		if (squares.size() > 1) {
-			for(Square square: squares) {
-				rowsMatch &= commonRow == square.getRow();
-				colsMatch &= commonCol == square.getCol();
-			}
+		for(Square square: squares) {
+			rowsMatch &= commonRow == square.getRow();
+			colsMatch &= commonCol == square.getCol();
 		}
 		return rowsMatch || colsMatch;
 	}
@@ -102,43 +100,22 @@ public class BoardService {
 	}
 	
 	boolean areTilesConnected(Board board, SortedSet<Square> squares) {
-		final Square firstSquare = squares.first();
-		final Square lastSquare = squares.last();
-		int commonRow = firstSquare.getRow();
-		int commonCol = firstSquare.getCol();
-		
 		boolean isConnected = false;
-		final Direction direction = getDirection(squares);
 
-		if (direction == Direction.HORIZONTAL) {
-			for (Square square: squares)  {
-				if (commonRow != 0) {
-					isConnected |= isOccupied(board, commonRow - 1, square.getCol());
-				}
-				if (commonRow != Board.HEIGHT-1) {
-					isConnected |= isOccupied(board, commonRow + 1, square.getCol());
-				}
+		for (Square square: squares)  {
+			int row = square.getRow();
+			int col = square.getCol();
+			if (col != 0) {
+				isConnected |= isOccupied(board, row, col-1);
 			}
-			if (firstSquare.getCol() > 0) {
-				isConnected |= isOccupied(board, commonRow, firstSquare.getCol()-1);
+			if (col != Board.WIDTH-1) {
+				isConnected |= isOccupied(board, row, col+1);
 			}
-			if (lastSquare.getCol() > Board.WIDTH-1) {
-				isConnected |= isOccupied(board, commonRow, lastSquare.getCol()+1);
+			if (row > 0) {
+				isConnected |= isOccupied(board, row-1, col);
 			}
-		} else /* Direction.VERTICAL */ { 
-			for (Square square: squares)  {
-				if (commonCol != 0) {
-					isConnected |= isOccupied(board, square.getRow(), commonCol -1);
-				}
-				if (commonCol != Board.WIDTH-1) {
-					isConnected |= isOccupied(board, square.getRow(), commonCol +1);
-				}
-			}
-			if (firstSquare.getRow() > 0) {
-				isConnected |= isOccupied(board, firstSquare.getRow()-1, commonCol);
-			}
-			if (lastSquare.getRow() > Board.HEIGHT-1) {
-				isConnected |= isOccupied(board, lastSquare.getRow()+1, commonCol);
+			if (row < Board.HEIGHT-1) {
+				isConnected |= isOccupied(board, row+1, col);
 			}
 		}
 		return isConnected;
@@ -168,7 +145,7 @@ public class BoardService {
 				col += 1;
 			} while (col < Board.WIDTH && isOccupied(board, row, col));
 			
-			if (wordSquares.size() >= 2) {
+			if (wordSquares.size() >= Board.MIN_WORD_LENGTH) {
 				adjoinedSquares.add(wordSquares);
 			}
 			//check for VERTICAL words
@@ -184,7 +161,7 @@ public class BoardService {
 					wordSquares.add(wordSquare);
 					row += 1;
 				} while (row < Board.HEIGHT && isOccupied(board, row, col));
-				if (wordSquares.size() >= 2) {
+				if (wordSquares.size() >= Board.MIN_WORD_LENGTH) {
 					adjoinedSquares.add(wordSquares);
 				}
 			}

@@ -33,25 +33,26 @@ public class ScrabbleGameController {
 	private GameService gameService;
 
 	@PostMapping(path = "")
-	public ResponseEntity<Game> newGame(@NonNull @RequestParam("player") String playerName) {
+	public ResponseEntity<Game> createGame(@NonNull @RequestParam("player") String playerName) {
 		Game game = gameService.newGame(playerName);
+		
 		return ResponseEntity.ok(game);  
 	}
 
-	@GetMapping(path = "/{gameId}")
-	public ResponseEntity<Game> getState(@PathVariable String gameId) {
-		Game game = gameService.refreshGame(gameId);
-		return ResponseEntity.ok(game);  
-	}
 	//TODO: make an actual request model here!
 	@PostMapping(path = "/{gameId}")
-	public ResponseEntity<Game> join(@PathVariable String gameId, @RequestParam("player") String playerName) {
+	public ResponseEntity<Game> joinGame(@PathVariable String gameId, @RequestParam("player") String playerName) {
 		Game game= gameService.addPlayer(gameId, playerName);
 		return ResponseEntity.ok(game);   
 	}
 	
+	@GetMapping(path = "/{gameId}/{playerId}")
+	public ResponseEntity<Game> getGame(@PathVariable String gameId) {
+		Game game = gameService.refreshGame(gameId);
+		return ResponseEntity.ok(game);  
+	}
 	@DeleteMapping(path = "/{gameId}/{playerId}")
-	public ResponseEntity<?> leave(@PathVariable String gameId, @PathVariable String playerId) {
+	public ResponseEntity<?> leaveGame(@PathVariable String gameId, @PathVariable String playerId) {
 		Game game = gameService.removePlayer(gameId, playerId);
 		return ResponseEntity.ok(game);  
 	}
@@ -62,7 +63,7 @@ public class ScrabbleGameController {
 		return ResponseEntity.ok(game);  
 	}
 
-	@PostMapping(path = "/{gameId}/{playerId}/await")
+	@GetMapping(path = "/{gameId}/{playerId}/await")
 	public ResponseEntity<?> await(@PathVariable String gameId, @PathVariable String playerId) {
 		//TODO: change the body to make it a Request with skip flag
 		Game game = gameService.awaitUpdate(gameId, playerId);
