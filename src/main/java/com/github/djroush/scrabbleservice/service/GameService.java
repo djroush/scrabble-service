@@ -6,6 +6,7 @@ import java.util.ListIterator;
 import java.util.Optional;
 import java.util.Set;
 import java.util.SortedSet;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -108,7 +109,7 @@ public class GameService {
 		return game;
 	}
 	
-	public Game start(String gameId) {
+	public Game start(String gameId, String playerId) {
 		final Game game = find(gameId);
 		verifyPending(game);
 		final int numberOfPlayers = game.getPlayers().size();
@@ -182,7 +183,7 @@ public class GameService {
 			//do something else here?
 		} 
 		player.setRack(rack);
-		
+		filterPlayer(game, playerId);
 		return game;
 	}
 
@@ -207,6 +208,7 @@ public class GameService {
 		game.setLastTurn(turn);
 		upNext(game);
 		update(game);
+		filterPlayer(game, playerId);
 		return game;
 	}
 
@@ -234,6 +236,7 @@ public class GameService {
 		upNext(game);
 		update(game);
 		//TODO: need to create a turn somewhere
+		filterPlayer(game, playerId);
 		return game;
 	}
 	
@@ -263,6 +266,7 @@ public class GameService {
 		}
 		
 		update(game);
+		filterPlayer(game, challengingPlayerId);
 		return game;
 	}
 	public Game forfeit(String gameId, String playerId) {
@@ -273,6 +277,7 @@ public class GameService {
 		player.setIsForfeited(true);
 		
 		update(game);
+		filterPlayer(game, playerId);
 		return game;
 	}
 	
@@ -363,6 +368,15 @@ public class GameService {
 
 		gameRepository.update(game);
 		return game;
+	}
+	
+	private void filterPlayer(Game game, String playerId) {
+		game.getPlayers().forEach(
+		  player -> {
+			if (!playerId.equals(player.getId())) {
+				player.setRack(null);
+			}
+		});
 	}
 }
 

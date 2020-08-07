@@ -51,17 +51,17 @@ public class ScrabbleGameController {
 		Game game = gameService.refreshGame(gameId);
 		return ResponseEntity.ok(game);  
 	}
+	@PostMapping(path = "/{gameId}/{playerId}/start")
+	public ResponseEntity<?> startGame(@PathVariable String gameId, @PathVariable String playerId) {
+		Game game = gameService.start(gameId, playerId);
+		return ResponseEntity.ok(game);  
+	}
 	@DeleteMapping(path = "/{gameId}/{playerId}")
 	public ResponseEntity<?> leaveGame(@PathVariable String gameId, @PathVariable String playerId) {
 		Game game = gameService.removePlayer(gameId, playerId);
 		return ResponseEntity.ok(game);  
 	}
 
-	@PostMapping(path = "/{gameId}/start")
-	public ResponseEntity<?> startGame(@PathVariable String gameId) {
-		Game game = gameService.start(gameId);
-		return ResponseEntity.ok(game);  
-	}
 
 	@GetMapping(path = "/{gameId}/{playerId}/await")
 	public ResponseEntity<?> await(@PathVariable String gameId, @PathVariable String playerId) {
@@ -72,7 +72,7 @@ public class ScrabbleGameController {
 	}
 	
 	@PostMapping(path = "/{gameId}/{playerId}", consumes = "application/json")
-	public ResponseEntity<Game> takeTurn2(@PathVariable String gameId, @PathVariable String playerId,
+	public ResponseEntity<Game> takeTurn(@PathVariable String gameId, @PathVariable String playerId,
 			@RequestBody TurnRequest turnRequest) throws IOException {
 		
 		final List<Square> squares = turnRequest.getSquares();
