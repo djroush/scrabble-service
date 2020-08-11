@@ -1,3 +1,4 @@
+
 package com.github.djroush.scrabbleservice.model;
 
 import java.util.ArrayList;
@@ -12,6 +13,8 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 public class Game {
 	public final static int MAX_PLAYERS = 4;
 
+	private int version;
+	private String playerId;
 	private String id;
 	private GameState state;
 	private Turn lastTurn;
@@ -26,11 +29,24 @@ public class Game {
 	private ListIterator<Player> turnIterator = players.listIterator();
 	private Player playerCurrentlyUp = null;
 		
+	public int getVersion() {
+		return version;
+	}
+	public void setVersion(int version) {
+		this.version = version;
+	}
 	public String getId() {
 		return id;
 	}
 	public void setId(String id) {
 		this.id = id;
+	}
+	
+	public String getPlayerId() {
+		return playerId;
+	}
+	public void setPlayerId(String playerId) {
+		this.playerId = playerId;
 	}
 	public GameState getState() {
 		return state;

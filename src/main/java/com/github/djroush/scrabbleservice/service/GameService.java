@@ -1,12 +1,12 @@
 package com.github.djroush.scrabbleservice.service;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Optional;
 import java.util.Set;
 import java.util.SortedSet;
-import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -30,6 +30,9 @@ import com.github.djroush.scrabbleservice.model.Turn;
 import com.github.djroush.scrabbleservice.model.rest.Square;
 import com.github.djroush.scrabbleservice.repository.GameRepository;
 
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
+
 @Service
 public class GameService {
 	private static final int MIN_PLAYERS = 2;
@@ -45,10 +48,14 @@ public class GameService {
 	private TurnService turnService;
 	
 	@Autowired
+	private BlockingGameService blockingGameService;
+	
+	@Autowired
 	private GameRepository gameRepository;
 	
 	public Game newGame(String playerName) {
 		final Game game = new Game();
+		game.setVersion(0);
 		game.setTileBag(new TileBag());
 		game.setBoard(new Board());
 //		final String gameId = UUID.randomUUID().toString();
@@ -86,13 +93,16 @@ public class GameService {
 			throw new GameFullException();
 		}
 		
+		//String playerId = UUID.randomUUID().toString()
+		String playerId = String.valueOf(players.size()+1);
+		game.setPlayerId(playerId);
 		Player player = new Player();
-		player.setId(String.valueOf(players.size()+1));
-//		player.setId(UUID.randomUUID().toString());
+		player.setId(playerId);
 		player.setName(playerName);
 		player.setRack(new Rack());
 		players.add(player);
 		game.setPlayers(players);
+		game.setVersion(game.getVersion()+1);
 		
 		update(game);
 		return game;
@@ -133,12 +143,37 @@ public class GameService {
 	// END PENDING GAME ACTIONS
 
 	//START ACTIVE GAME ACTIONS
-	public Game awaitUpdate(String gameId, String playerId) {
-		//Put pub sub stuff here?
+	public Mono<Game> awaitUpdate(String gameId, int currentVersion) {
 
+//		
+//		Mono<Game> gameMono = Mono.fromSupplier(() -> 
+//			blockingGameService.awaitUpdate(gameId, currentVersion))
+//			.subscribeOn(Schedulers.boundedElastic()); 
+//		
+		Mono<Game> g2 = Mono.defer(() -> 
+			Mono.fromSupplier(() -> 
+				blockingGameService.awaitUpdate(gameId, currentVersion)
+			).subscribeOn(Schedulers.elastic())
+			.filter(game1 -> game1.getId() == gameId && currentVersion > game1.getVersion())
+		);
 		
-		//TODO players who are awaiting their turn can call this! 
-		return null;
+		
+//		Mono<Game> game = Mono.defer(
+//			Mono.fromSupplier(() -> blockingGameService.awaitUpdate(gameId, currentVersion))
+//				.subscribeOn(Schedulers.elastic())
+//				.filter(game1 -> game1.getId() == gameId && currentVersion > game1.getVersion())
+//				.block(Duration.ofMinutes(1L))
+//		);
+		
+//		Mono<Game> game = Mono.fromCallable(() -> {
+//			return Mono
+//			.from(gamePublisher)
+//			.filter(game1 -> game1.getId() == gameId)
+//			.subscribeOn(Schedulers.elastic())
+//			.block(Duration.ofMinutes(1L));
+//		});
+			
+		return g2;
 	}
 	
 	public Game playTurn(String gameId, String playerId, SortedSet<Square> squares) {

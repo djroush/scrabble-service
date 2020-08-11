@@ -15,7 +15,7 @@ public class AccessControlFilter implements WebFilter {
 	@Override
 	public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
 		exchange.getResponse().getHeaders().add("Access-Control-Allow-Origin", "*");
-		exchange.getResponse().getHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+		exchange.getResponse().getHeaders().add("Access-Control-Allow-Headers", "Content-Type, If-None-Match, ETag");
 		return chain.filter(exchange);
 	}
 }
