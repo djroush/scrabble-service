@@ -1,6 +1,5 @@
 package com.github.djroush.scrabbleservice.service;
 
-import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.ListIterator;
@@ -30,9 +29,6 @@ import com.github.djroush.scrabbleservice.model.Turn;
 import com.github.djroush.scrabbleservice.model.rest.Square;
 import com.github.djroush.scrabbleservice.repository.GameRepository;
 
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
-
 @Service
 public class GameService {
 	private static final int MIN_PLAYERS = 2;
@@ -46,9 +42,6 @@ public class GameService {
 	private TileBagService tileService;
 	@Autowired 
 	private TurnService turnService;
-	
-	@Autowired
-	private BlockingGameService blockingGameService;
 	
 	@Autowired
 	private GameRepository gameRepository;
@@ -102,7 +95,6 @@ public class GameService {
 		player.setRack(new Rack());
 		players.add(player);
 		game.setPlayers(players);
-		game.setVersion(game.getVersion()+1);
 		
 		update(game);
 		return game;
@@ -143,38 +135,6 @@ public class GameService {
 	// END PENDING GAME ACTIONS
 
 	//START ACTIVE GAME ACTIONS
-	public Mono<Game> awaitUpdate(String gameId, int currentVersion) {
-
-//		
-//		Mono<Game> gameMono = Mono.fromSupplier(() -> 
-//			blockingGameService.awaitUpdate(gameId, currentVersion))
-//			.subscribeOn(Schedulers.boundedElastic()); 
-//		
-		Mono<Game> g2 = Mono.defer(() -> 
-			Mono.fromSupplier(() -> 
-				blockingGameService.awaitUpdate(gameId, currentVersion)
-			).subscribeOn(Schedulers.elastic())
-			.filter(game1 -> game1.getId() == gameId && currentVersion > game1.getVersion())
-		);
-		
-		
-//		Mono<Game> game = Mono.defer(
-//			Mono.fromSupplier(() -> blockingGameService.awaitUpdate(gameId, currentVersion))
-//				.subscribeOn(Schedulers.elastic())
-//				.filter(game1 -> game1.getId() == gameId && currentVersion > game1.getVersion())
-//				.block(Duration.ofMinutes(1L))
-//		);
-		
-//		Mono<Game> game = Mono.fromCallable(() -> {
-//			return Mono
-//			.from(gamePublisher)
-//			.filter(game1 -> game1.getId() == gameId)
-//			.subscribeOn(Schedulers.elastic())
-//			.block(Duration.ofMinutes(1L));
-//		});
-			
-		return g2;
-	}
 	
 	public Game playTurn(String gameId, String playerId, SortedSet<Square> squares) {
 		final Game game = find(gameId);
@@ -387,7 +347,11 @@ public class GameService {
 	}
 	
 	private Game update(Game game) {
-		if (game.getState() == GameState.ACTIVE) {
+		GameState state = game.getState();
+		if (state == GameState.ACTIVE || state == GameState.PENDING) {
+			game.setVersion(game.getVersion()+1);
+		}
+		if (state == GameState.ACTIVE) {
 			int turnNumber = game.getTurnNumber();
 			game.setTurnNumber(turnNumber+1);
 		}

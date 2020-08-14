@@ -28,8 +28,6 @@ import com.github.djroush.scrabbleservice.model.rest.Square;
 import com.github.djroush.scrabbleservice.model.rest.TurnRequest;
 import com.github.djroush.scrabbleservice.service.GameService;
 
-import reactor.core.publisher.Mono;
-
 @RestController
 @RequestMapping("/scrabble/game")
 public class ScrabbleGameController {
@@ -51,9 +49,26 @@ public class ScrabbleGameController {
 	}
 	
 	@GetMapping(path = "/{gameId}/{playerId}")
-	public ResponseEntity<Game> getGame(@PathVariable String gameId) {
+	public ResponseEntity<Game> getGame(@PathVariable String gameId, @RequestHeader(value="ETag",required=false) String eTag) {
+		int previousVersion = -1;
+		if (eTag != null) {
+			try {
+				previousVersion = Integer.parseInt(eTag);
+			} catch (NumberFormatException nfe){}
+		}
 		Game game = gameService.refreshGame(gameId);
-		return ResponseEntity.ok(game);  
+		int currentVersion = game.getVersion();
+		if (previousVersion == currentVersion) {
+			return ResponseEntity
+			.status(HttpStatus.NOT_MODIFIED)
+			.header("ETag", String.valueOf(game.getVersion()))
+			.build();
+		} else {
+			return ResponseEntity
+			.status(HttpStatus.OK)
+			.header("ETag", String.valueOf(game.getVersion()))
+			.body(game);
+		}
 	}
 	@PostMapping(path = "/{gameId}/{playerId}/start")
 	public ResponseEntity<?> startGame(@PathVariable String gameId, @PathVariable String playerId) {
@@ -67,44 +82,32 @@ public class ScrabbleGameController {
 	}
 
 
-	@GetMapping(path = "/{gameId}/{playerId}/await")
-	public Mono<ResponseEntity<Game>> await(@PathVariable String gameId, @PathVariable String playerId, @RequestHeader("ETag") String eTag) {
-		Game game = gameService.refreshGame(gameId);
-		int currentVersion = game.getVersion();
-		int previousVersion = -1;
-		if (eTag != null) {
-			try {
-				previousVersion = Integer.parseInt(eTag);
-			} finally {}
-		}
-		boolean eTagMissing = eTag == null;
-		if (previousVersion < currentVersion || eTagMissing) {
-			return Mono.just(ResponseEntity
-				.status(HttpStatus.OK)
-				.header("ETag", String.valueOf(game.getVersion()))
-				.body(game));
-		} else if (previousVersion > currentVersion) {
-			return Mono.just(ResponseEntity
-				.status(HttpStatus.PRECONDITION_FAILED)
-				.body(null));
-		} else {
-			Mono<Game> updatedGame = gameService.awaitUpdate(gameId, currentVersion);
-			//Success
-			Mono<ResponseEntity<Game>> result = updatedGame
-				.map(game1 ->ResponseEntity
-					.status(HttpStatus.OK)
-					.header("ETag", String.valueOf(game.getVersion()))
-					.body(game));
-			result.defaultIfEmpty(ResponseEntity
-					.status(HttpStatus.NOT_MODIFIED)
-					.header("ETag", String.valueOf(game.getVersion()))
-					.build());
-
-			
-			
-//			Game updatedGame = gameService.awaitUpdate(gameId, currentVersion);
+//	@GetMapping(path = "/{gameId}/{playerId}/await")
+//	public Mono<ResponseEntity<Game>> await(@PathVariable String gameId, @PathVariable String playerId, @RequestHeader("ETag") String eTag) {
+//		Game game = gameService.refreshGame(gameId);
+//		int currentVersion = game.getVersion();
+//		int previousVersion = -1;
+//		if (eTag != null) {
+//			try {
+//				previousVersion = Integer.parseInt(eTag);
+//			} finally {}
+//		}
+//		boolean eTagMissing = eTag == null;
+//		if (previousVersion < currentVersion || eTagMissing) {
+//			return Mono.just(ResponseEntity
+//				.status(HttpStatus.OK)
+//				.header("ETag", String.valueOf(game.getVersion()))
+//				.body(game));
+//		} else if (previousVersion > currentVersion) {
+//			return Mono.just(ResponseEntity
+//				.status(HttpStatus.PRECONDITION_FAILED)
+//				.body(null));
+//		} else {
+//
+//			Mono<Game> updatedGame = Mono.just(gameService.awaitUpdate(gameId, currentVersion));
+//			
 //			//Success
-//			Mono<ResponseEntity<Game>> result = Mono.just(updatedGame)
+//			Mono<ResponseEntity<Game>> result = updatedGame
 //				.map(game1 ->ResponseEntity
 //					.status(HttpStatus.OK)
 //					.header("ETag", String.valueOf(game.getVersion()))
@@ -113,16 +116,10 @@ public class ScrabbleGameController {
 //					.status(HttpStatus.NOT_MODIFIED)
 //					.header("ETag", String.valueOf(game.getVersion()))
 //					.build());
-
-//			//Error
-//			return ResponseEntity
-//				.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//				.body(t);
-//			};
-					
-			return result;
-		}
-	}
+//
+//			return result;
+//		}
+//	}
 	
 	@PostMapping(path = "/{gameId}/{playerId}", consumes = "application/json")
 	public ResponseEntity<Game> takeTurn(@PathVariable String gameId, @PathVariable String playerId,
