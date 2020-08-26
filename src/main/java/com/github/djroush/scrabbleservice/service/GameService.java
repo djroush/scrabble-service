@@ -89,7 +89,6 @@ public class GameService {
 		
 		//String playerId = UUID.randomUUID().toString()
 		String playerId = String.valueOf(players.size()+1);
-		game.setPlayerId(playerId);
 		Player player = new Player();
 		player.setId(playerId);
 		player.setName(playerName);

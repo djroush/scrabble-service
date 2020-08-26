@@ -11,7 +11,6 @@ public class Game {
 	public final static int MAX_PLAYERS = 4;
 
 	private int version;
-	private String playerId;
 	private String id;
 	private GameState state;
 	private Turn lastTurn;
@@ -40,12 +39,6 @@ public class Game {
 		this.id = id;
 	}
 	
-	public String getPlayerId() {
-		return playerId;
-	}
-	public void setPlayerId(String playerId) {
-		this.playerId = playerId;
-	}
 	public GameState getState() {
 		return state;
 	}

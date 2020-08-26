@@ -46,7 +46,8 @@ public class ScrabbleGameController {
 	//FIXME: read player from body not querystring!
 	public ResponseEntity<RestPlayerGame> createGame(@NonNull @RequestParam("player") String playerName) {
 		Game game = gameService.newGame(playerName);
-		RestPlayerGame restPlayerGame =convertModels(game, game.getPlayerId());
+		String playerId = game.getPlayers().get(game.getPlayers().size()-1).getId();
+		RestPlayerGame restPlayerGame =convertModels(game, playerId);
 		return ResponseEntity.ok(restPlayerGame);  
 	}
 
@@ -59,7 +60,8 @@ public class ScrabbleGameController {
 			throw new InvalidInputException();
 		}
 		Game game= gameService.addPlayer(gameId, playerName);
-		RestPlayerGame restPlayerGame = convertModels(game, game.getPlayerId());
+		String playerId = game.getPlayers().get(game.getPlayers().size()-1).getId();
+		RestPlayerGame restPlayerGame = convertModels(game, playerId);
 		return ResponseEntity.ok(restPlayerGame);   
 	}
 	
@@ -81,7 +83,7 @@ public class ScrabbleGameController {
 			.header("ETag", String.valueOf(game.getVersion()))
 			.build();
 		} else {
-			RestPlayerGame restPlayerGame = convertModels(game, game.getPlayerId());
+			RestPlayerGame restPlayerGame = convertModels(game, playerId);
 
 			return ResponseEntity
 			.status(HttpStatus.OK)
@@ -93,7 +95,7 @@ public class ScrabbleGameController {
 	public ResponseEntity<RestPlayerGame> startGame(@PathVariable String gameId, @PathVariable String playerId) {
 		checkInputParameters(gameId, playerId);
 		Game game = gameService.start(gameId, playerId);
-		RestPlayerGame restPlayerGame = convertModels(game, game.getPlayerId());
+		RestPlayerGame restPlayerGame = convertModels(game, playerId);
 		return ResponseEntity.ok(restPlayerGame);   
 
 	}
@@ -102,7 +104,7 @@ public class ScrabbleGameController {
 		checkInputParameters(gameId, playerId);
 		
 		Game game = gameService.removePlayer(gameId, playerId);
-		RestPlayerGame restPlayerGame = convertModels(game, game.getPlayerId());
+		RestPlayerGame restPlayerGame = convertModels(game, playerId);
 		return ResponseEntity.ok(restPlayerGame);   
 	}
 
@@ -182,7 +184,10 @@ public class ScrabbleGameController {
 		final List<RestPlayer> restPlayers = game.getPlayers().stream().
 		    map(player -> {
 		    final RestPlayer restPlayer = new RestPlayer();
-			restPlayer.setId(player.getId());
+		    //Don't show other people's ids so they can't make calls to the service pretending to be the other user
+		    if (playerId.equals(player.getId())) {
+		    	restPlayer.setId(player.getId());
+		    }
 			restPlayer.setName(player.getName());
 			restPlayer.setScore(player.getScore());
 			restPlayer.setSkipTurnCount(player.getSkipTurnCount());
