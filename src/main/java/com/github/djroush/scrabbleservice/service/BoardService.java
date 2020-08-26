@@ -12,10 +12,10 @@ import com.github.djroush.scrabbleservice.exception.IncorrectTileAlignmentExcept
 import com.github.djroush.scrabbleservice.exception.IncorrectTileCountException;
 import com.github.djroush.scrabbleservice.exception.TilesNotCenteredException;
 import com.github.djroush.scrabbleservice.exception.TilesNotConnectedException;
-import com.github.djroush.scrabbleservice.model.Board;
-import com.github.djroush.scrabbleservice.model.Direction;
-import com.github.djroush.scrabbleservice.model.Rack;
 import com.github.djroush.scrabbleservice.model.rest.Square;
+import com.github.djroush.scrabbleservice.model.service.Board;
+import com.github.djroush.scrabbleservice.model.service.Direction;
+import com.github.djroush.scrabbleservice.model.service.Rack;
 
 @Service
 public class BoardService {
@@ -121,9 +121,10 @@ public class BoardService {
 		return isConnected;
 	}
 	
+	//FIXME: add squares by default, just modify the values here if they don't already exist
 	public void playSquares(Board board, SortedSet<Square> squares) {
 		for (Square square: squares) {
-			board.addSquare(square);
+			board.setSquare(square);
 		}
 	}
 

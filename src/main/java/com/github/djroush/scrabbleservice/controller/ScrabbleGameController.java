@@ -2,8 +2,10 @@ package com.github.djroush.scrabbleservice.controller;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -19,13 +21,19 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.djroush.scrabbleservice.exception.InvalidInputException;
 import com.github.djroush.scrabbleservice.exception.InvalidTurnException;
-import com.github.djroush.scrabbleservice.model.Game;
-import com.github.djroush.scrabbleservice.model.PlayedTile;
-import com.github.djroush.scrabbleservice.model.Tile;
+import com.github.djroush.scrabbleservice.model.rest.RestBoard;
+import com.github.djroush.scrabbleservice.model.rest.RestGame;
+import com.github.djroush.scrabbleservice.model.rest.RestPlayer;
+import com.github.djroush.scrabbleservice.model.rest.RestPlayerGame;
+import com.github.djroush.scrabbleservice.model.rest.RestRack;
 import com.github.djroush.scrabbleservice.model.rest.Square;
 import com.github.djroush.scrabbleservice.model.rest.TurnRequest;
+import com.github.djroush.scrabbleservice.model.service.Game;
+import com.github.djroush.scrabbleservice.model.service.Player;
+import com.github.djroush.scrabbleservice.model.service.Rack;
+import com.github.djroush.scrabbleservice.model.service.Tile;
 import com.github.djroush.scrabbleservice.service.GameService;
 
 @RestController
@@ -35,28 +43,37 @@ public class ScrabbleGameController {
 	private GameService gameService;
 
 	@PostMapping(path = "")
-	public ResponseEntity<Game> createGame(@NonNull @RequestParam("player") String playerName) {
+	//FIXME: read player from body not querystring!
+	public ResponseEntity<RestPlayerGame> createGame(@NonNull @RequestParam("player") String playerName) {
 		Game game = gameService.newGame(playerName);
-		
-		return ResponseEntity.ok(game);  
+		RestPlayerGame restPlayerGame =convertModels(game, game.getPlayerId());
+		return ResponseEntity.ok(restPlayerGame);  
 	}
 
 	//TODO: make an actual request model here!
+	//FIXME: read player from body not querystring!
 	@PostMapping(path = "/{gameId}")
-	public ResponseEntity<Game> joinGame(@PathVariable String gameId, @RequestParam("player") String playerName) {
+	public ResponseEntity<RestPlayerGame> joinGame(@PathVariable String gameId, @RequestParam("player") String playerName) {
+		checkInputParameters(gameId, playerName);
+		if ("null".equals(gameId)) {
+			throw new InvalidInputException();
+		}
 		Game game= gameService.addPlayer(gameId, playerName);
-		return ResponseEntity.ok(game);   
+		RestPlayerGame restPlayerGame = convertModels(game, game.getPlayerId());
+		return ResponseEntity.ok(restPlayerGame);   
 	}
 	
 	@GetMapping(path = "/{gameId}/{playerId}")
-	public ResponseEntity<Game> getGame(@PathVariable String gameId, @RequestHeader(value="ETag",required=false) String eTag) {
+	public ResponseEntity<RestPlayerGame> getGame(@PathVariable String gameId, @PathVariable String playerId,  
+			@RequestHeader(value="ETag",required=false) String eTag) {
+		checkInputParameters(gameId, playerId);
 		int previousVersion = -1;
 		if (eTag != null) {
 			try {
 				previousVersion = Integer.parseInt(eTag);
 			} catch (NumberFormatException nfe){}
 		}
-		Game game = gameService.refreshGame(gameId);
+		Game game = gameService.refreshGame(gameId, playerId);
 		int currentVersion = game.getVersion();
 		if (previousVersion == currentVersion) {
 			return ResponseEntity
@@ -64,66 +81,37 @@ public class ScrabbleGameController {
 			.header("ETag", String.valueOf(game.getVersion()))
 			.build();
 		} else {
+			RestPlayerGame restPlayerGame = convertModels(game, game.getPlayerId());
+
 			return ResponseEntity
 			.status(HttpStatus.OK)
 			.header("ETag", String.valueOf(game.getVersion()))
-			.body(game);
+			.body(restPlayerGame);
 		}
 	}
 	@PostMapping(path = "/{gameId}/{playerId}/start")
-	public ResponseEntity<?> startGame(@PathVariable String gameId, @PathVariable String playerId) {
+	public ResponseEntity<RestPlayerGame> startGame(@PathVariable String gameId, @PathVariable String playerId) {
+		checkInputParameters(gameId, playerId);
 		Game game = gameService.start(gameId, playerId);
-		return ResponseEntity.ok(game);  
+		RestPlayerGame restPlayerGame = convertModels(game, game.getPlayerId());
+		return ResponseEntity.ok(restPlayerGame);   
+
 	}
 	@DeleteMapping(path = "/{gameId}/{playerId}")
-	public ResponseEntity<?> leaveGame(@PathVariable String gameId, @PathVariable String playerId) {
+	public ResponseEntity<RestPlayerGame> leaveGame(@PathVariable String gameId, @PathVariable String playerId) {
+		checkInputParameters(gameId, playerId);
+		
 		Game game = gameService.removePlayer(gameId, playerId);
-		return ResponseEntity.ok(game);  
+		RestPlayerGame restPlayerGame = convertModels(game, game.getPlayerId());
+		return ResponseEntity.ok(restPlayerGame);   
 	}
 
-
-//	@GetMapping(path = "/{gameId}/{playerId}/await")
-//	public Mono<ResponseEntity<Game>> await(@PathVariable String gameId, @PathVariable String playerId, @RequestHeader("ETag") String eTag) {
-//		Game game = gameService.refreshGame(gameId);
-//		int currentVersion = game.getVersion();
-//		int previousVersion = -1;
-//		if (eTag != null) {
-//			try {
-//				previousVersion = Integer.parseInt(eTag);
-//			} finally {}
-//		}
-//		boolean eTagMissing = eTag == null;
-//		if (previousVersion < currentVersion || eTagMissing) {
-//			return Mono.just(ResponseEntity
-//				.status(HttpStatus.OK)
-//				.header("ETag", String.valueOf(game.getVersion()))
-//				.body(game));
-//		} else if (previousVersion > currentVersion) {
-//			return Mono.just(ResponseEntity
-//				.status(HttpStatus.PRECONDITION_FAILED)
-//				.body(null));
-//		} else {
-//
-//			Mono<Game> updatedGame = Mono.just(gameService.awaitUpdate(gameId, currentVersion));
-//			
-//			//Success
-//			Mono<ResponseEntity<Game>> result = updatedGame
-//				.map(game1 ->ResponseEntity
-//					.status(HttpStatus.OK)
-//					.header("ETag", String.valueOf(game.getVersion()))
-//					.body(game));
-//			result.defaultIfEmpty(ResponseEntity
-//					.status(HttpStatus.NOT_MODIFIED)
-//					.header("ETag", String.valueOf(game.getVersion()))
-//					.build());
-//
-//			return result;
-//		}
-//	}
 	
+	//TODO: fix the return types on the models below here
 	@PostMapping(path = "/{gameId}/{playerId}", consumes = "application/json")
 	public ResponseEntity<Game> takeTurn(@PathVariable String gameId, @PathVariable String playerId,
 			@RequestBody TurnRequest turnRequest) throws IOException {
+		checkInputParameters(gameId, playerId);
 		
 		final List<Square> squares = turnRequest.getSquares();
 		final List<Tile> tiles = turnRequest.getTiles();
@@ -153,34 +141,65 @@ public class ScrabbleGameController {
 		return ResponseEntity.ok(game);
 	}
 
-	
-	public static void main(String[] args) throws IOException {
-		Square square = new Square(7, 5);
-		PlayedTile tile = new PlayedTile();
-		tile.setLetter('M');
-		tile.setBlank(false);
-		square.setTile(tile);
-		
-		ObjectMapper objectMapper = new ObjectMapper(); 
-		String json = objectMapper.writeValueAsString(square);
-		System.out.println(json);
-		
-		String json2 = "{\"row\":7,\"col\":5,\"tile\":{\"blank\":false,\"letter\":\"M\"}}";
-		Square square2 = objectMapper.readValue(json2, Square.class);
-		System.out.println("square2: " + square2);
-	}
-
 	@PostMapping(path= "/{gameId}/{playerId}/challenge") 
 	public ResponseEntity<Game> challenge(@PathVariable String gameId, @PathVariable String playerId) {
+		checkInputParameters(gameId, playerId);
 		final Game game = gameService.challenge(gameId, playerId);
 		return ResponseEntity.ok(game); 
 	}
-	
-	//Merge with methods above?
-	@PostMapping(path= "/{gameId}/{playerId}/forfeit") 
+
+	@PostMapping(path= "/{gameId}/{playerId}/forfeit")
 	public ResponseEntity<?> forfeit(@PathVariable String gameId, @PathVariable String playerId) {
+		checkInputParameters(gameId, playerId);
 		final Game game = gameService.forfeit(gameId, playerId);
 		return ResponseEntity.ok(game);
 	}
+	
+	private void checkInputParameters(String gameId, String playerId) {
+		if (gameId == null || gameId.isBlank() || "null".equals(gameId)) {
+			throw new InvalidInputException();
+		}
+	}
+	
+	private RestPlayerGame convertModels(Game game, String playerId) {
+		final RestPlayerGame playerGame = new RestPlayerGame();
+		final List<Square> boardSquares = game.getBoard().getSquares();
+		
+		final RestBoard board = new RestBoard();
+		board.setSquares(boardSquares);
+		playerGame.setBoard(board);
+		
+		final Optional<Player> currentPlayer = game.getPlayers().stream() 
+			.filter(player -> playerId.equals(player.getId()))
+			.findFirst();
+		final Rack rack = currentPlayer.isPresent() ? currentPlayer.get().getRack() : null;
+		if (rack != null) {
+			RestRack restRack = new RestRack();
+			restRack.setTiles(rack.getTiles());
+			playerGame.setRack(restRack);
+		}
+		
+		final List<RestPlayer> restPlayers = game.getPlayers().stream().
+		    map(player -> {
+		    final RestPlayer restPlayer = new RestPlayer();
+			restPlayer.setId(player.getId());
+			restPlayer.setName(player.getName());
+			restPlayer.setScore(player.getScore());
+			restPlayer.setSkipTurnCount(player.getSkipTurnCount());
+			restPlayer.setForfeited(player.getIsForfeited());
+			return restPlayer;
+		}).collect(Collectors.toList());
+		playerGame.setPlayers(restPlayers);
+
+		final RestGame restGame = new RestGame();
+		restGame.setId(game.getId());
+		restGame.setPlayerId(playerId);
+		restGame.setVersion(game.getVersion());
+		restGame.setState(game.getState().name());
+		playerGame.setGame(restGame);
+
+		return playerGame;
+	}
+
 
 }

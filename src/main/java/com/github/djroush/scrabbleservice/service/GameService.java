@@ -17,16 +17,16 @@ import com.github.djroush.scrabbleservice.exception.IncorrectPlayerCountExceptio
 import com.github.djroush.scrabbleservice.exception.TurnOutofOrderException;
 import com.github.djroush.scrabbleservice.exception.UnknownGameException;
 import com.github.djroush.scrabbleservice.exception.UnknownPlayerException;
-import com.github.djroush.scrabbleservice.model.Board;
-import com.github.djroush.scrabbleservice.model.Game;
-import com.github.djroush.scrabbleservice.model.GameState;
-import com.github.djroush.scrabbleservice.model.PlayedTile;
-import com.github.djroush.scrabbleservice.model.Player;
-import com.github.djroush.scrabbleservice.model.Rack;
-import com.github.djroush.scrabbleservice.model.Tile;
-import com.github.djroush.scrabbleservice.model.TileBag;
-import com.github.djroush.scrabbleservice.model.Turn;
 import com.github.djroush.scrabbleservice.model.rest.Square;
+import com.github.djroush.scrabbleservice.model.service.Board;
+import com.github.djroush.scrabbleservice.model.service.Game;
+import com.github.djroush.scrabbleservice.model.service.GameState;
+import com.github.djroush.scrabbleservice.model.service.PlayedTile;
+import com.github.djroush.scrabbleservice.model.service.Player;
+import com.github.djroush.scrabbleservice.model.service.Rack;
+import com.github.djroush.scrabbleservice.model.service.Tile;
+import com.github.djroush.scrabbleservice.model.service.TileBag;
+import com.github.djroush.scrabbleservice.model.service.Turn;
 import com.github.djroush.scrabbleservice.repository.GameRepository;
 
 @Service
@@ -63,9 +63,10 @@ public class GameService {
 	}
 	
 	//This method exists so that a method using gameRepository is not coupled to a public API method 
-	public Game refreshGame(String gameId) {
+	public Game refreshGame(String gameId, String playerId) {
 		//If an error exists or a browser is closed this can reopen
 		final Game game = find(gameId);
+		filterPlayer(game, playerId);
 		return game;
 	}
 
@@ -166,7 +167,7 @@ public class GameService {
 		
 		squares.forEach(square -> {
 			final PlayedTile playedTile = square.getTile();
-			final Tile tile = playedTile.getTile();
+			final Tile tile = Tile.from(playedTile.getLetter());
 			tiles.remove(tile);
 		});
 		
@@ -178,7 +179,7 @@ public class GameService {
 			//do something else here?
 		} 
 		player.setRack(rack);
-		filterPlayer(game, playerId);
+		
 		return game;
 	}
 
@@ -230,6 +231,7 @@ public class GameService {
 		game.setLastTurn(turn);
 		upNext(game);
 		update(game);
+		
 		//TODO: need to create a turn somewhere
 		filterPlayer(game, playerId);
 		return game;
@@ -370,12 +372,14 @@ public class GameService {
 	}
 	
 	private void filterPlayer(Game game, String playerId) {
-		game.getPlayers().forEach(
-		  player -> {
-			if (!playerId.equals(player.getId())) {
-				player.setRack(null);
-			}
-		});
+//		game.getPlayers().forEach(
+//		  player -> {
+//			//TODO: this is bad, need to convert models here
+//			if (!playerId.equals(player.getId())) {
+//				player.setRack(null);
+//			}
+//		});
 	}
-}
+	
+	}
 

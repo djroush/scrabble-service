@@ -1,15 +1,12 @@
 
-package com.github.djroush.scrabbleservice.model;
+package com.github.djroush.scrabbleservice.model.service;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
-@JsonInclude(Include.NON_DEFAULT)
 public class Game {
 	public final static int MAX_PLAYERS = 4;
 
@@ -23,6 +20,7 @@ public class Game {
 	int consecutiveScorelessTurns = 0;
 	int turnNumber = 0;
 	int activePlayerCount = 0;
+	int activePlayerIndex = 0;
 
 	private List<Player> players = new ArrayList<Player>(MAX_PLAYERS);
 	@JsonIgnore

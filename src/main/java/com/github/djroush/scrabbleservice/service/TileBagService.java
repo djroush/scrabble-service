@@ -5,10 +5,9 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-//import com.github.djroush.scrabbleservice.model.Player;
-import com.github.djroush.scrabbleservice.model.Rack;
-import com.github.djroush.scrabbleservice.model.Tile;
-import com.github.djroush.scrabbleservice.model.TileBag;
+import com.github.djroush.scrabbleservice.model.service.Rack;
+import com.github.djroush.scrabbleservice.model.service.Tile;
+import com.github.djroush.scrabbleservice.model.service.TileBag;
 
 @Service
 public class TileBagService {

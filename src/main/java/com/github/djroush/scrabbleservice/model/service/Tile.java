@@ -1,4 +1,4 @@
-package com.github.djroush.scrabbleservice.model;
+package com.github.djroush.scrabbleservice.model.service;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonFormat.Shape;
@@ -21,7 +21,8 @@ public enum Tile {
 		return value;
 	}
 	public String getName() {
-		return name();
+		String name  = name();
+		return "BLANK".equals(name) ? " " : name;
 	};
 	
 	public static Tile from(char letter) {

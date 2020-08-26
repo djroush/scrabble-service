@@ -1,4 +1,4 @@
-package com.github.djroush.scrabbleservice.model;
+package com.github.djroush.scrabbleservice.model.service;
 
 import java.util.List;
 import java.util.SortedSet;

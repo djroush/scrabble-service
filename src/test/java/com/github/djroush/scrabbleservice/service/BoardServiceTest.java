@@ -13,9 +13,9 @@ import java.util.TreeSet;
 
 import org.junit.jupiter.api.Test;
 
-import com.github.djroush.scrabbleservice.model.Board;
-import com.github.djroush.scrabbleservice.model.PlayedTile;
 import com.github.djroush.scrabbleservice.model.rest.Square;
+import com.github.djroush.scrabbleservice.model.service.Board;
+import com.github.djroush.scrabbleservice.model.service.PlayedTile;
 
 public class BoardServiceTest {
 
@@ -207,7 +207,7 @@ public class BoardServiceTest {
 					playedTile.setLetter(letter);
 					square.setTile(playedTile);
 				}
-				board.addSquare(square);
+				board.setSquare(square);
 			}
 		}
 		return board;

@@ -1,4 +1,4 @@
-package com.github.djroush.scrabbleservice.model;
+package com.github.djroush.scrabbleservice.model.service;
 
 import java.util.ArrayList;
 import java.util.List;

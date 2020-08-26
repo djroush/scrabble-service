@@ -2,7 +2,7 @@ package com.github.djroush.scrabbleservice.model.rest;
 
 import java.util.List;
 
-import com.github.djroush.scrabbleservice.model.Tile;
+import com.github.djroush.scrabbleservice.model.service.Tile;
 
 public class TurnRequest {
 	private List<Square> squares;

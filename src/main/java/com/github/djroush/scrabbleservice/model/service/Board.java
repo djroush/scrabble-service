@@ -1,19 +1,16 @@
-package com.github.djroush.scrabbleservice.model;
+package com.github.djroush.scrabbleservice.model.service;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.github.djroush.scrabbleservice.model.rest.Square;
 
-@JsonInclude(Include.NON_DEFAULT)
 public class Board {
 	public static final int CENTER = 7;
 	public static final int WIDTH = 15;
 	public static final int HEIGHT = 15;
 	public static final int MIN_WORD_LENGTH = 2;
-	
+
 	private final List<Square> squares;
 	
 	public Board() {
@@ -25,8 +22,8 @@ public class Board {
 			}
 		}
 	}
-
-	public void addSquare(Square square) {
+	
+	public void setSquare(Square square) {
 		int row = square.getRow();
 		int col = square.getCol();
 		int index=row*WIDTH+col;
@@ -37,4 +34,10 @@ public class Board {
 		Square square = squares.get(index);
 		return square;
 	}
+
+	public List<Square> getSquares() {
+		return squares;
+	}
+	
+	
 }

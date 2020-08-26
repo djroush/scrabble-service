@@ -2,7 +2,7 @@ package com.github.djroush.scrabbleservice.repository;
 
 import org.springframework.stereotype.Repository;
 
-import com.github.djroush.scrabbleservice.model.Game;
+import com.github.djroush.scrabbleservice.model.service.Game;
 
 @Repository
 public class GameRepository {

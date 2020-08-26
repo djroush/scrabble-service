@@ -1,7 +1,7 @@
 package com.github.djroush.scrabbleservice.model.rest;
 
-import com.github.djroush.scrabbleservice.model.Board;
-import com.github.djroush.scrabbleservice.model.PlayedTile;
+import com.github.djroush.scrabbleservice.model.service.Board;
+import com.github.djroush.scrabbleservice.model.service.PlayedTile;
 
 public class Square implements Comparable<Square> {
 	private  int row;

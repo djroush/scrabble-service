@@ -1,4 +1,4 @@
-package com.github.djroush.scrabbleservice.model;
+package com.github.djroush.scrabbleservice.model.service;
 
 public enum GameState {
   //UNKNOWN = Default to this state when the game state is not known

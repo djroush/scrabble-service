@@ -8,12 +8,13 @@ import java.util.SortedSet;
 
 import org.springframework.stereotype.Service;
 
-import com.github.djroush.scrabbleservice.model.Game;
-import com.github.djroush.scrabbleservice.model.PlayedTile;
-import com.github.djroush.scrabbleservice.model.Player;
-import com.github.djroush.scrabbleservice.model.ScoreModifier;
-import com.github.djroush.scrabbleservice.model.Turn;
 import com.github.djroush.scrabbleservice.model.rest.Square;
+import com.github.djroush.scrabbleservice.model.service.Game;
+import com.github.djroush.scrabbleservice.model.service.PlayedTile;
+import com.github.djroush.scrabbleservice.model.service.Player;
+import com.github.djroush.scrabbleservice.model.service.ScoreModifier;
+import com.github.djroush.scrabbleservice.model.service.Tile;
+import com.github.djroush.scrabbleservice.model.service.Turn;
 
 @Service
 public class TurnService {
@@ -34,7 +35,8 @@ public class TurnService {
 				final ScoreModifier sm =  playedSquares.contains(square) ? 
 					getScoreModifier(square) : ScoreModifier.SINGLE_LETTER; 
 						
-				int letterValue = playedTile.getTile().getValue();
+				Tile t = Tile.from(playedTile.getLetter());
+				int letterValue = t.getValue();
 				switch (sm) {
 				case TRIPLE_WORD: wordMultiplier *= 3; break;
 				case DOUBLE_WORD: wordMultiplier *= 2; break;
