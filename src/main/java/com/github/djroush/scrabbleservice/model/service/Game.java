@@ -3,27 +3,20 @@ package com.github.djroush.scrabbleservice.model.service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.ListIterator;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
 
 public class Game {
 	public final static int MAX_PLAYERS = 4;
 
-	private int version;
 	private String id;
 	private GameState state;
 	private Turn lastTurn;
 	private Board board;
 	private TileBag tileBag;
-	int consecutiveScorelessTurns = 0;
-	int turnNumber = 0;
-	int activePlayerCount = 0;
-	int activePlayerIndex = 0;
+	private int version = 0;
+	private int consecutiveScorelessTurns = 0;
+	private int activePlayerIndex = 0;
 
 	private List<Player> players = new ArrayList<Player>(MAX_PLAYERS);
-	@JsonIgnore
-	private ListIterator<Player> turnIterator = players.listIterator();
 	private Player playerCurrentlyUp = null;
 		
 	public int getVersion() {
@@ -51,11 +44,9 @@ public class Game {
 	public void setBoard(Board board) {
 		this.board = board;
 	}
-	@JsonIgnore
 	public TileBag getTileBag() {
 		return tileBag;
 	}
-	@JsonIgnore
 	public void setTileBag(TileBag tileBag) {
 		this.tileBag = tileBag;
 	}
@@ -74,11 +65,8 @@ public class Game {
 	public List<Player> getPlayers() {
 		return players;
 	}
-	public ListIterator<Player> getTurnIterator() {
-		return turnIterator;
-	}
-	public void setTurnIterator(ListIterator<Player> turnIterator) {
-		this.turnIterator = turnIterator;
+	public void setPlayers(List<Player> players) {
+		this.players = players;
 	}
 	public Player getPlayerCurrentlyUp() {
 		return playerCurrentlyUp;
@@ -86,19 +74,10 @@ public class Game {
 	public void setPlayerCurrentlyUp(Player currentlyUp) {
 		this.playerCurrentlyUp = currentlyUp;
 	}
-	public int getTurnNumber() {
-		return turnNumber;
+	public int getActivePlayerIndex() {
+		return activePlayerIndex;
 	}
-	public void setTurnNumber(int turnNumber) {
-		this.turnNumber = turnNumber;
-	}
-	public int getActivePlayerCount() {
-		return activePlayerCount;
-	}
-	public void setActivePlayerCount(int activePlayerCount) {
-		this.activePlayerCount = activePlayerCount;
-	}
-	public void setPlayers(List<Player> players) {
-		this.players = players;
+	public void setActivePlayerIndex(int activePlayerIndex) {
+		this.activePlayerIndex = activePlayerIndex;
 	}
 }

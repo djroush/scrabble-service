@@ -12,18 +12,22 @@ import com.github.djroush.scrabbleservice.model.rest.Square;
 import com.github.djroush.scrabbleservice.model.service.Game;
 import com.github.djroush.scrabbleservice.model.service.PlayedTile;
 import com.github.djroush.scrabbleservice.model.service.Player;
+import com.github.djroush.scrabbleservice.model.service.Rack;
 import com.github.djroush.scrabbleservice.model.service.ScoreModifier;
 import com.github.djroush.scrabbleservice.model.service.Tile;
 import com.github.djroush.scrabbleservice.model.service.Turn;
 
 @Service
 public class TurnService {
+	private static final int BINGO_BONUS = 50;
 	
 	public Turn playTurn(Player player, SortedSet<Square> playedSquares, List<Set<Square>> squareWordList) {
 		Turn turn = new Turn();
 		turn.setPlayer(player);
 		turn.setSquares(playedSquares);
 		
+		//        3L
+		//T O T E M 
 		int turnScore = 0;
 		final List<String> words = new ArrayList<String>(squareWordList.size());
 		for (final Set<Square> squareWord: squareWordList) {
@@ -49,16 +53,21 @@ public class TurnService {
 				if (!playedTile.isBlank()) {
 				    wordScore += letterValue;
 				}
-				sb.append(playedTile.toString());
+				sb.append(playedTile.getLetter());
 			}
 			wordScore *= wordMultiplier;
 			turnScore += wordScore;
+			if (playedSquares.size() == Rack.MAX_TILES) {
+				turnScore += BINGO_BONUS;
+			}
 			String word = sb.toString();
 			words.add(word);
 			sb.delete(0, word.length());
 		}
 		turn.setScore(turnScore); 
 		turn.setWordsPlayed(words);
+		int score = player.getScore();
+		player.setScore(score + turnScore);
 		return turn;
 	}
 	

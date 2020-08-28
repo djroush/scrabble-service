@@ -1,6 +1,6 @@
 package com.github.djroush.scrabbleservice.model.service;
 
-//TODO: this is messy, clean it up later probably don't need tile here
+//FIXME: rename to Tile
 public class PlayedTile {
 	private char letter;
 	private boolean isBlank;
@@ -10,7 +10,6 @@ public class PlayedTile {
 	}
 	public void setLetter(char letter) {
 		this.letter = letter;
-//		this.tile = Tile.from(letter);
 	}
 	public boolean isBlank() {
 		return isBlank;

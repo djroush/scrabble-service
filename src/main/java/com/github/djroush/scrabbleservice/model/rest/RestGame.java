@@ -5,6 +5,7 @@ public class RestGame {
 	public String playerId;
 	public int version;
 	public String state;
+	public int activePlayerIndex;
 	
 	public String getId() {
 		return id;
@@ -30,4 +31,11 @@ public class RestGame {
 	public void setState(String state) {
 		this.state = state;
 	}
+	public int getActivePlayerIndex() {
+		return activePlayerIndex;
+	}
+	public void setActivePlayerIndex(int activePlayerIndex) {
+		this.activePlayerIndex = activePlayerIndex;
+	}
+	
 }

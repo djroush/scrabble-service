@@ -22,14 +22,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.github.djroush.scrabbleservice.exception.InvalidInputException;
-import com.github.djroush.scrabbleservice.exception.InvalidTurnException;
+import com.github.djroush.scrabbleservice.exception.InvalidPassTurnException;
+import com.github.djroush.scrabbleservice.model.rest.ExchangeRequest;
+import com.github.djroush.scrabbleservice.model.rest.PassTurnRequest;
+import com.github.djroush.scrabbleservice.model.rest.PlayTilesRequest;
 import com.github.djroush.scrabbleservice.model.rest.RestBoard;
 import com.github.djroush.scrabbleservice.model.rest.RestGame;
 import com.github.djroush.scrabbleservice.model.rest.RestPlayer;
 import com.github.djroush.scrabbleservice.model.rest.RestPlayerGame;
 import com.github.djroush.scrabbleservice.model.rest.RestRack;
 import com.github.djroush.scrabbleservice.model.rest.Square;
-import com.github.djroush.scrabbleservice.model.rest.TurnRequest;
 import com.github.djroush.scrabbleservice.model.service.Game;
 import com.github.djroush.scrabbleservice.model.service.Player;
 import com.github.djroush.scrabbleservice.model.service.Rack;
@@ -91,14 +93,7 @@ public class ScrabbleGameController {
 			.body(restPlayerGame);
 		}
 	}
-	@PostMapping(path = "/{gameId}/{playerId}/start")
-	public ResponseEntity<RestPlayerGame> startGame(@PathVariable String gameId, @PathVariable String playerId) {
-		checkInputParameters(gameId, playerId);
-		Game game = gameService.start(gameId, playerId);
-		RestPlayerGame restPlayerGame = convertModels(game, playerId);
-		return ResponseEntity.ok(restPlayerGame);   
 
-	}
 	@DeleteMapping(path = "/{gameId}/{playerId}")
 	public ResponseEntity<RestPlayerGame> leaveGame(@PathVariable String gameId, @PathVariable String playerId) {
 		checkInputParameters(gameId, playerId);
@@ -108,41 +103,52 @@ public class ScrabbleGameController {
 		return ResponseEntity.ok(restPlayerGame);   
 	}
 
-	
-	//TODO: fix the return types on the models below here
-	@PostMapping(path = "/{gameId}/{playerId}", consumes = "application/json")
-	public ResponseEntity<Game> takeTurn(@PathVariable String gameId, @PathVariable String playerId,
-			@RequestBody TurnRequest turnRequest) throws IOException {
+	@PostMapping(path = "/{gameId}/{playerId}/start")
+	public ResponseEntity<RestPlayerGame> startGame(@PathVariable String gameId, @PathVariable String playerId) {
+		checkInputParameters(gameId, playerId);
+		Game game = gameService.start(gameId, playerId);
+		RestPlayerGame restPlayerGame = convertModels(game, playerId);
+		return ResponseEntity.ok(restPlayerGame);   
+	}
+
+	@PostMapping(path = "/{gameId}/{playerId}/play", consumes = "application/json")
+	public ResponseEntity<RestPlayerGame> play(@PathVariable String gameId, @PathVariable String playerId,
+			@RequestBody PlayTilesRequest playTilesRequest) throws IOException {
 		checkInputParameters(gameId, playerId);
 		
-		final List<Square> squares = turnRequest.getSquares();
+		final List<Square> squares = playTilesRequest.getSquares();
+		SortedSet<Square> sortedSquares = new TreeSet<Square>(squares);
+		Game game = gameService.playTurn(gameId, playerId, sortedSquares);
+		RestPlayerGame restPlayerGame = convertModels(game, playerId);
+		return ResponseEntity.ok(restPlayerGame);
+	}
+	
+	@PostMapping(path = "/{gameId}/{playerId}/exchange", consumes = "application/json")
+	public ResponseEntity<Game> exchange(@PathVariable String gameId, @PathVariable String playerId,
+			@RequestBody ExchangeRequest turnRequest) throws IOException {
+		checkInputParameters(gameId, playerId);
+		
 		final List<Tile> tiles = turnRequest.getTiles();
-		boolean isPlay =  squares != null;
-		boolean isExchange = tiles != null;
-		boolean isPass = turnRequest.isPassTurn();
-		boolean isSkipped = turnRequest.isLostTurn();
-		
-		int count = 0;
-		if (isPlay) { count++; }
-		if (isExchange) { count++; }
-		if (isPass) { count++; }
-		if (isSkipped) { count++; }
-		
-		if (count != 1) {
-			throw new InvalidTurnException();
-		}
-		Game game = null;
-		if (isPlay) {
-			SortedSet<Square> sortedSquares = new TreeSet<Square>(squares);
-			game = gameService.playTurn(gameId, playerId, sortedSquares);
-		} else if (isExchange) {
-			game = gameService.exchange(gameId, playerId, tiles);
-		} else {
-			game = gameService.passTurn(gameId, playerId);
-		}
+		Game game = gameService.exchange(gameId, playerId, tiles);
 		return ResponseEntity.ok(game);
 	}
 
+	//TODO: fix the return types on the models below here split into multiple methods
+	@PostMapping(path = "/{gameId}/{playerId}/pass", consumes = "application/json")
+	public ResponseEntity<Game> passTurn(@PathVariable String gameId, @PathVariable String playerId,
+			@RequestBody PassTurnRequest turnRequest) throws IOException {
+		checkInputParameters(gameId, playerId);
+		
+		boolean isPass = turnRequest.isPassTurn();	
+		if (isPass) {
+			Game game = gameService.passTurn(gameId, playerId);
+			return ResponseEntity.ok(game);
+		} else {
+			throw new InvalidPassTurnException();
+		}
+		
+	}
+	
 	@PostMapping(path= "/{gameId}/{playerId}/challenge") 
 	public ResponseEntity<Game> challenge(@PathVariable String gameId, @PathVariable String playerId) {
 		checkInputParameters(gameId, playerId);
@@ -177,7 +183,13 @@ public class ScrabbleGameController {
 		final Rack rack = currentPlayer.isPresent() ? currentPlayer.get().getRack() : null;
 		if (rack != null) {
 			RestRack restRack = new RestRack();
-			restRack.setTiles(rack.getTiles());
+			
+			List<String> tiles = rack.getTiles().stream().map(tile -> { 
+				String name = tile.getName();
+				return "BLANK".equals(name) ? " " : name;	
+			}).collect(Collectors.toList());
+			
+			restRack.setTiles(tiles);
 			playerGame.setRack(restRack);
 		}
 		
@@ -201,10 +213,10 @@ public class ScrabbleGameController {
 		restGame.setPlayerId(playerId);
 		restGame.setVersion(game.getVersion());
 		restGame.setState(game.getState().name());
+		restGame.setActivePlayerIndex(game.getActivePlayerIndex());
 		playerGame.setGame(restGame);
 
 		return playerGame;
 	}
-
 
 }

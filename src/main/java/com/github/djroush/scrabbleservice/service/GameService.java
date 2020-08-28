@@ -2,7 +2,6 @@ package com.github.djroush.scrabbleservice.service;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Optional;
 import java.util.Set;
 import java.util.SortedSet;
@@ -48,16 +47,14 @@ public class GameService {
 	
 	public Game newGame(String playerName) {
 		final Game game = new Game();
-		game.setVersion(0);
 		game.setTileBag(new TileBag());
 		game.setBoard(new Board());
 //		final String gameId = UUID.randomUUID().toString();
 		final String gameId = "6AME1";
-		
 		game.setId(gameId);
 		game.setState(GameState.PENDING);
 		addPlayer(game, playerName);
-		
+
 		insert(game);
 		return game;
 	}
@@ -66,7 +63,6 @@ public class GameService {
 	public Game refreshGame(String gameId, String playerId) {
 		//If an error exists or a browser is closed this can reopen
 		final Game game = find(gameId);
-		filterPlayer(game, playerId);
 		return game;
 	}
 
@@ -93,6 +89,10 @@ public class GameService {
 		player.setId(playerId);
 		player.setName(playerName);
 		player.setRack(new Rack());
+		if (players.isEmpty()) {
+			game.setActivePlayerIndex(0);
+			game.setPlayerCurrentlyUp(player);
+		}
 		players.add(player);
 		game.setPlayers(players);
 		
@@ -121,13 +121,9 @@ public class GameService {
 		//TODO: grab tiles for all the players
 		TileBag tileBag = game.getTileBag();
 		
-		List<Player> players = game.getPlayers();
-		game.setTurnIterator(players.listIterator());
-		players
-			.forEach(player -> tileService.fillRack(tileBag, player.getRack()));
+		game.getPlayers().forEach(player -> tileService.fillRack(tileBag, player.getRack()));
 		game.setState(GameState.ACTIVE);
 		
-		game.setPlayerCurrentlyUp(upNext(game));
 		update(game);
 		return game;
 	}
@@ -156,7 +152,8 @@ public class GameService {
 		}
 		
 		game.setLastTurn(turn);
-		upNext(game);
+		
+		updateNext(game);
 		update(game);
 
 		//TODO: wait for a challenge before drawing new letters, remove ENDGAME state?
@@ -201,9 +198,8 @@ public class GameService {
 		}
 		
 		game.setLastTurn(turn);
-		upNext(game);
+		updateNext(game);
 		update(game);
-		filterPlayer(game, playerId);
 		return game;
 	}
 
@@ -228,11 +224,9 @@ public class GameService {
 			turn.setScore(0);
 		}
 		game.setLastTurn(turn);
-		upNext(game);
+		updateNext(game);
 		update(game);
 		
-		//TODO: need to create a turn somewhere
-		filterPlayer(game, playerId);
 		return game;
 	}
 	
@@ -262,7 +256,6 @@ public class GameService {
 		}
 		
 		update(game);
-		filterPlayer(game, challengingPlayerId);
 		return game;
 	}
 	public Game forfeit(String gameId, String playerId) {
@@ -273,7 +266,6 @@ public class GameService {
 		player.setIsForfeited(true);
 		
 		update(game);
-		filterPlayer(game, playerId);
 		return game;
 	}
 	
@@ -317,20 +309,27 @@ public class GameService {
 		return foundPlayer.get();
 	}
 
-	private Player upNext(Game game) {		
-		ListIterator<Player> turnIterator = game.getTurnIterator();
+	private void updateNext(Game game) {		
 		List<Player> players = game.getPlayers();
-		Player playerUpNow = null;
+		int activePlayerIndex = game.getActivePlayerIndex();
+		
+		Player player = null;
 		do { //Reset to beginning of list
-			boolean hasNext = turnIterator.hasNext();
-			if (!hasNext) {  
-				turnIterator = players.listIterator();
+			activePlayerIndex += 1;
+			activePlayerIndex %= players.size();
+			player = players.get(activePlayerIndex);
+			int skipTurnCount = player.getSkipTurnCount();
+			if (skipTurnCount > 0) {
+				player.setSkipTurnCount(skipTurnCount-1);
+				continue;
 			}
-			playerUpNow = turnIterator.next();
-	    } while (playerUpNow.getIsForfeited());
+			if (!player.getIsForfeited()) {
+				break;
+			}
+	    } while (true);
 
-		game.setPlayerCurrentlyUp(playerUpNow);
-		return playerUpNow;
+		game.setActivePlayerIndex(activePlayerIndex);
+		game.setPlayerCurrentlyUp(player);
 	}
 
 	
@@ -352,10 +351,6 @@ public class GameService {
 		if (state == GameState.ACTIVE || state == GameState.PENDING) {
 			game.setVersion(game.getVersion()+1);
 		}
-		if (state == GameState.ACTIVE) {
-			int turnNumber = game.getTurnNumber();
-			game.setTurnNumber(turnNumber+1);
-		}
 		Turn turn = game.getLastTurn();
 		//This will be null on the first turn
 		if (turn != null) {
@@ -365,20 +360,7 @@ public class GameService {
 				
 			}
 		}
-
 		gameRepository.update(game);
 		return game;
 	}
-	
-	private void filterPlayer(Game game, String playerId) {
-//		game.getPlayers().forEach(
-//		  player -> {
-//			//TODO: this is bad, need to convert models here
-//			if (!playerId.equals(player.getId())) {
-//				player.setRack(null);
-//			}
-//		});
-	}
-	
-	}
-
+}
