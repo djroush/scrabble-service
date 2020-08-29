@@ -90,8 +90,8 @@ public class GameService {
 		player.setName(playerName);
 		player.setRack(new Rack());
 		if (players.isEmpty()) {
-			game.setActivePlayerIndex(0);
-			game.setPlayerCurrentlyUp(player);
+			game.setActivePlayerIndex(-1);
+			game.setActivePlayer(null);
 		}
 		players.add(player);
 		game.setPlayers(players);
@@ -122,6 +122,9 @@ public class GameService {
 		TileBag tileBag = game.getTileBag();
 		
 		game.getPlayers().forEach(player -> tileService.fillRack(tileBag, player.getRack()));
+		Player firstPlayer = game.getPlayers().get(0);
+		game.setActivePlayerIndex(0);
+		game.setActivePlayer(firstPlayer);
 		game.setState(GameState.ACTIVE);
 		
 		update(game);
@@ -291,8 +294,8 @@ public class GameService {
 	}
 	
 	private void isPlayerTurn(Game game, Player player) {
-		Player currentlyUp = game.getPlayerCurrentlyUp();
-		boolean isPlayerTurn = player == currentlyUp;
+		Player activePlayer = game.getActivePlayer();
+		boolean isPlayerTurn = player == activePlayer;
 		if (!isPlayerTurn) {
 			throw new TurnOutofOrderException();
 		}
@@ -329,7 +332,7 @@ public class GameService {
 	    } while (true);
 
 		game.setActivePlayerIndex(activePlayerIndex);
-		game.setPlayerCurrentlyUp(player);
+		game.setActivePlayer(player);
 	}
 
 	

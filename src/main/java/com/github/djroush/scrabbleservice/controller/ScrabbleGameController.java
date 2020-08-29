@@ -41,6 +41,7 @@ import com.github.djroush.scrabbleservice.service.GameService;
 @RestController
 @RequestMapping("/scrabble/game")
 public class ScrabbleGameController {
+	
 	@Autowired
 	private GameService gameService;
 

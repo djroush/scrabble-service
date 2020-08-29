@@ -19,6 +19,7 @@ public class AccessControlFilter implements WebFilter {
 		headers.add("Access-Control-Allow-Origin", "*");
 		headers.add("Access-Control-Allow-Headers", "Content-Type, If-None-Match, ETag");
 		headers.add("Access-Control-Expose-Headers", "Content-Length, ETag");
+		headers.add("Cache-Control", "no-store");
 		return chain.filter(exchange);
 	}
 }

@@ -17,7 +17,7 @@ public class Game {
 	private int activePlayerIndex = 0;
 
 	private List<Player> players = new ArrayList<Player>(MAX_PLAYERS);
-	private Player playerCurrentlyUp = null;
+	private Player activePlayer = null;
 		
 	public int getVersion() {
 		return version;
@@ -68,11 +68,13 @@ public class Game {
 	public void setPlayers(List<Player> players) {
 		this.players = players;
 	}
-	public Player getPlayerCurrentlyUp() {
-		return playerCurrentlyUp;
+
+	
+	public Player getActivePlayer() {
+		return activePlayer;
 	}
-	public void setPlayerCurrentlyUp(Player currentlyUp) {
-		this.playerCurrentlyUp = currentlyUp;
+	public void setActivePlayer(Player activePlayer) {
+		this.activePlayer = activePlayer;
 	}
 	public int getActivePlayerIndex() {
 		return activePlayerIndex;

@@ -57,12 +57,12 @@ public class TurnService {
 			}
 			wordScore *= wordMultiplier;
 			turnScore += wordScore;
-			if (playedSquares.size() == Rack.MAX_TILES) {
-				turnScore += BINGO_BONUS;
-			}
 			String word = sb.toString();
 			words.add(word);
 			sb.delete(0, word.length());
+		}
+		if (playedSquares.size() == Rack.MAX_TILES) {
+			turnScore += BINGO_BONUS;
 		}
 		turn.setScore(turnScore); 
 		turn.setWordsPlayed(words);

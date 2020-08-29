@@ -1,6 +1,5 @@
 package com.github.djroush.scrabbleservice.model.service;
 
-//FIXME: rename to Tile
 public class PlayedTile {
 	private char letter;
 	private boolean isBlank;
@@ -11,10 +10,10 @@ public class PlayedTile {
 	public void setLetter(char letter) {
 		this.letter = letter;
 	}
-	public boolean isBlank() {
+	public boolean getIsBlank() {
 		return isBlank;
 	}
-	public void setBlank(boolean isBlank) {
+	public void setIsBlank(boolean isBlank) {
 		this.isBlank = isBlank;
 	}
 }
