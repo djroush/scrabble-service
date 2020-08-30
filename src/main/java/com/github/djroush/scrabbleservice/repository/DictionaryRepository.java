@@ -1,7 +1,7 @@
 package com.github.djroush.scrabbleservice.repository;
 
 import java.io.IOException;
-import java.net.URL;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
@@ -23,12 +23,12 @@ public class DictionaryRepository {
 			String anagramListFile = String.format("anagramList/%d.json", length);  
 			//TODO: add dirty words?
 			//TODO add SerDes for wordList
-			final URL wordListResource = this.getClass().getClassLoader().getResource(wordListFile);
-			final URL anagramListResource = this.getClass().getClassLoader().getResource(anagramListFile);
-			wordList = Files.readAllLines(Paths.get(wordListResource.getPath()));
+			final URI wordListResource = this.getClass().getClassLoader().getResource(wordListFile).toURI();
+			final URI anagramListResource = this.getClass().getClassLoader().getResource(anagramListFile).toURI();
+			wordList = Files.readAllLines(Paths.get(wordListResource));
 			
-			this.anagrams = objectMapper.readValue(anagramListResource, AnagramDictionary.class);
-			} catch (IOException e) {
+			this.anagrams = objectMapper.readValue(anagramListResource.toURL(), AnagramDictionary.class);
+			} catch (Exception e) {
 			throw new IllegalArgumentException("Unable to load wordlist", e);
 		}
 	}

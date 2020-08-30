@@ -12,18 +12,6 @@ import com.github.djroush.scrabbleservice.model.service.TileBag;
 @Service
 public class TileBagService {
 
-//	public boolean hasTiles(Player player, List<Tile> playedTiles) {
-//		boolean tilesExist = true;
-//		final List<Tile> tilesList = player.getRack().getTiles();
-//		final List<Tile> tilesCopyList = new ArrayList<Tile>(tilesList);
-//		
-//		for (final Tile playedTile: playedTiles) {
-//			tilesExist |= tilesCopyList.remove(playedTile); 
-//		}
-//  TODO: add logic for blank letters?	
-//		return tilesExist;
-//	}
-
 	public void fillRack(TileBag tileBag, Rack rack) {
 		int missingTilesCount = Rack.MAX_TILES - rack.getTiles().size(); 
 		List<Tile> newTiles = remove(tileBag, missingTilesCount);
