@@ -166,7 +166,7 @@ public class GameService {
 		
 		squares.forEach(square -> {
 			final PlayedTile playedTile = square.getTile();
-			final Tile tile = Tile.from(playedTile.getLetter());
+			final Tile tile = playedTile.getIsBlank() ? Tile.BLANK : Tile.from(playedTile.getLetter());
 			tiles.remove(tile);
 		});
 		

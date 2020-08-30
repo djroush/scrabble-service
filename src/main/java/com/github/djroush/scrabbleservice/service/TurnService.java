@@ -50,7 +50,7 @@ public class TurnService {
 				case ZERO_LETTER:  letterValue *= 0; break;
 				}
 				
-				if (!playedTile.isBlank()) {
+				if (!playedTile.getIsBlank()) {
 				    wordScore += letterValue;
 				}
 				sb.append(playedTile.getLetter());
@@ -76,7 +76,7 @@ public class TurnService {
     	int col = square.getCol();
 		final PlayedTile tile = square.getTile();
 		
-		if (tile != null && tile.isBlank()) {
+		if (tile != null && tile.getIsBlank()) {
 			return ScoreModifier.ZERO_LETTER;
 		}
 		
