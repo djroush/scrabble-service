@@ -132,7 +132,9 @@ public class ScrabbleGameController {
 			@RequestBody ExchangeRequest turnRequest) throws IOException {
 		checkInputParameters(gameId, playerId);
 		
-		final List<Tile> tiles = turnRequest.getTiles();
+		final List<Tile> tiles = turnRequest.getTiles().stream()
+				.map(t -> t.isBlank() ? Tile.BLANK : Tile.from(t.getLetter().charAt(0)))
+				.collect(Collectors.toList());
 		Game game = gameService.exchange(gameId, playerId, tiles);
 		RestPlayerGame restPlayerGame = convertModels(game, playerId);
 		return ResponseEntity.ok(restPlayerGame);

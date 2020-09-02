@@ -26,6 +26,7 @@ import com.github.djroush.scrabbleservice.model.service.Rack;
 import com.github.djroush.scrabbleservice.model.service.Tile;
 import com.github.djroush.scrabbleservice.model.service.TileBag;
 import com.github.djroush.scrabbleservice.model.service.Turn;
+import com.github.djroush.scrabbleservice.model.service.TurnAction;
 import com.github.djroush.scrabbleservice.repository.GameRepository;
 
 @Service
@@ -219,8 +220,13 @@ public class GameService {
 		} else {
 			final Rack rack = player.getRack();
 			final TileBag tileBag = game.getTileBag();
+			tiles.forEach(tile -> {
+				rack.getTiles().remove(tile);
+				tileBag.getBag().add(tile);
+			});
 			tileService.fillRack(tileBag, rack);
 			turn = new Turn();
+			turn.setAction(TurnAction.EXCHANGE_TILES);
 			turn.setSquares(Collections.emptySortedSet());
 			turn.setPlayer(player);
 			turn.setWordsPlayed(Collections.emptyList());
@@ -256,6 +262,8 @@ public class GameService {
 			int skipTurnCount = player.getSkipTurnCount();
 			player.setSkipTurnCount(skipTurnCount+1);
 //			Turn thisTurn = turnService.createTurn(player);
+			
+			//TODO: create a turn here
 		}
 		
 		update(game);
@@ -267,6 +275,8 @@ public class GameService {
 
 		final Player player = findPlayer(game, playerId);
 		player.setIsForfeited(true);
+
+		//TODO: create a turn here
 		
 		update(game);
 		return game;
