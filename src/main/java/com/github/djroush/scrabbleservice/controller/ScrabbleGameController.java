@@ -22,9 +22,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.github.djroush.scrabbleservice.exception.InvalidInputException;
-import com.github.djroush.scrabbleservice.exception.InvalidPassTurnException;
 import com.github.djroush.scrabbleservice.model.rest.ExchangeRequest;
-import com.github.djroush.scrabbleservice.model.rest.PassTurnRequest;
 import com.github.djroush.scrabbleservice.model.rest.PlayTilesRequest;
 import com.github.djroush.scrabbleservice.model.rest.RestBoard;
 import com.github.djroush.scrabbleservice.model.rest.RestGame;
@@ -140,20 +138,13 @@ public class ScrabbleGameController {
 		return ResponseEntity.ok(restPlayerGame);
 	}
 
-	//TODO: fix the return types on the models below here split into multiple methods
 	@PostMapping(path = "/{gameId}/{playerId}/pass", consumes = "application/json")
-	public ResponseEntity<RestPlayerGame> passTurn(@PathVariable String gameId, @PathVariable String playerId,
-			@RequestBody PassTurnRequest turnRequest) throws IOException {
+	public ResponseEntity<RestPlayerGame> passTurn(@PathVariable String gameId, @PathVariable String playerId) throws IOException {
 		checkInputParameters(gameId, playerId);
 		
-		boolean isPass = turnRequest.isPassTurn();	
-		if (isPass) {
-			Game game = gameService.passTurn(gameId, playerId);
-			RestPlayerGame restPlayerGame = convertModels(game, playerId);
-			return ResponseEntity.ok(restPlayerGame);
-		} else {
-			throw new InvalidPassTurnException();
-		}
+		Game game = gameService.passTurn(gameId, playerId);
+		RestPlayerGame restPlayerGame = convertModels(game, playerId);
+		return ResponseEntity.ok(restPlayerGame);
 	}
 	
 	@PostMapping(path= "/{gameId}/{playerId}/challenge") 

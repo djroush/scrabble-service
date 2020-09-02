@@ -194,7 +194,9 @@ public class GameService {
 			player.setSkipTurnCount(skipTurnCount - 1);
 			turn = turnService.skipTurn(player, game.getLastTurn());
 		} else {
+			//TODO: should put this in turnService??
 			turn = new Turn();
+			turn.setAction(TurnAction.PASS_TURN);
 			turn.setSquares(Collections.emptySortedSet());
 			turn.setPlayer(player);
 			turn.setWordsPlayed(Collections.emptyList());
@@ -225,6 +227,7 @@ public class GameService {
 				tileBag.getBag().add(tile);
 			});
 			tileService.fillRack(tileBag, rack);
+			//TODO: put this in turn service
 			turn = new Turn();
 			turn.setAction(TurnAction.EXCHANGE_TILES);
 			turn.setSquares(Collections.emptySortedSet());
@@ -261,9 +264,10 @@ public class GameService {
 			Player player = findPlayer(game, challengingPlayerId);
 			int skipTurnCount = player.getSkipTurnCount();
 			player.setSkipTurnCount(skipTurnCount+1);
-//			Turn thisTurn = turnService.createTurn(player);
-			
 			//TODO: create a turn here
+			//			Turn thisTurn = turnService.createTurn(player);
+			
+			
 		}
 		
 		update(game);
