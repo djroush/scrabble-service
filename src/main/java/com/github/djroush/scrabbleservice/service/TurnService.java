@@ -16,6 +16,7 @@ import com.github.djroush.scrabbleservice.model.service.Rack;
 import com.github.djroush.scrabbleservice.model.service.ScoreModifier;
 import com.github.djroush.scrabbleservice.model.service.Tile;
 import com.github.djroush.scrabbleservice.model.service.Turn;
+import com.github.djroush.scrabbleservice.model.service.TurnAction;
 
 @Service
 public class TurnService {
@@ -25,7 +26,7 @@ public class TurnService {
 		Turn turn = new Turn();
 		turn.setPlayer(player);
 		turn.setSquares(playedSquares);
-		
+		turn.setAction(TurnAction.PLAY_TILES);
 		//        3L
 		//T O T E M 
 		int turnScore = 0;
@@ -89,7 +90,7 @@ public class TurnService {
 		} else if (row % 4 == 1 && col % 4 == 1 && !(row % 12 == 1 && col % 12 == 1)) {
 			return ScoreModifier.TRIPLE_LETTER;
 		} else if ((row == col || row + col == 14) && 
-			      ((row >= 1 && row <= 4)  || (row == 7 && col == 7)))  {
+			      ((row >= 1 && row <= 4)  || (row == 7 && col == 7) || (row >= 10 && row <= 13)))  {
 			return ScoreModifier.DOUBLE_WORD;
 	    //The center tile is handled above by DOUBLE_WORD
 		} else if (row % 7 == 0 && col % 7 == 0) {
@@ -104,6 +105,7 @@ public class TurnService {
 		turn.setSquares(Collections.emptySortedSet());
 		turn.setScore(0);
 		turn.setWordsPlayed(Collections.emptyList());
+		turn.setAction(TurnAction.PASS_TURN);
 		return turn;
 	}
 	
@@ -118,6 +120,7 @@ public class TurnService {
 		int skippedTurnCount  = player.getSkipTurnCount();
 		player.setScore(score - turn.getScore());
 		player.setSkipTurnCount(skippedTurnCount + 1);
+		turn.setAction(TurnAction.CHALLENGE_TURN);
 		// TODO Finish coding here
 	}
 	

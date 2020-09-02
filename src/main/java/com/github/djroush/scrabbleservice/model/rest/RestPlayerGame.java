@@ -7,7 +7,7 @@ public class RestPlayerGame {
     private List<RestPlayer> players;
 	private RestRack rack;
 	private RestGame game;
-
+	private RestTurn lastTurn;
 	public RestBoard getBoard() {
 		return board;
 	}
@@ -31,5 +31,11 @@ public class RestPlayerGame {
 	}
 	public void setGame(RestGame game) {
 		this.game = game;
+	}
+	public RestTurn getLastTurn() {
+		return lastTurn;
+	}
+	public void setLastTurn(RestTurn lastTurn) {
+		this.lastTurn = lastTurn;
 	}
 }

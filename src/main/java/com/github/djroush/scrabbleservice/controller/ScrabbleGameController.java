@@ -31,11 +31,14 @@ import com.github.djroush.scrabbleservice.model.rest.RestGame;
 import com.github.djroush.scrabbleservice.model.rest.RestPlayer;
 import com.github.djroush.scrabbleservice.model.rest.RestPlayerGame;
 import com.github.djroush.scrabbleservice.model.rest.RestRack;
+import com.github.djroush.scrabbleservice.model.rest.RestTurn;
 import com.github.djroush.scrabbleservice.model.rest.Square;
 import com.github.djroush.scrabbleservice.model.service.Game;
 import com.github.djroush.scrabbleservice.model.service.Player;
 import com.github.djroush.scrabbleservice.model.service.Rack;
 import com.github.djroush.scrabbleservice.model.service.Tile;
+import com.github.djroush.scrabbleservice.model.service.Turn;
+import com.github.djroush.scrabbleservice.model.service.TurnAction;
 import com.github.djroush.scrabbleservice.service.GameService;
 
 @RestController
@@ -125,43 +128,46 @@ public class ScrabbleGameController {
 	}
 	
 	@PostMapping(path = "/{gameId}/{playerId}/exchange", consumes = "application/json")
-	public ResponseEntity<Game> exchange(@PathVariable String gameId, @PathVariable String playerId,
+	public ResponseEntity<RestPlayerGame> exchange(@PathVariable String gameId, @PathVariable String playerId,
 			@RequestBody ExchangeRequest turnRequest) throws IOException {
 		checkInputParameters(gameId, playerId);
 		
 		final List<Tile> tiles = turnRequest.getTiles();
 		Game game = gameService.exchange(gameId, playerId, tiles);
-		return ResponseEntity.ok(game);
+		RestPlayerGame restPlayerGame = convertModels(game, playerId);
+		return ResponseEntity.ok(restPlayerGame);
 	}
 
 	//TODO: fix the return types on the models below here split into multiple methods
 	@PostMapping(path = "/{gameId}/{playerId}/pass", consumes = "application/json")
-	public ResponseEntity<Game> passTurn(@PathVariable String gameId, @PathVariable String playerId,
+	public ResponseEntity<RestPlayerGame> passTurn(@PathVariable String gameId, @PathVariable String playerId,
 			@RequestBody PassTurnRequest turnRequest) throws IOException {
 		checkInputParameters(gameId, playerId);
 		
 		boolean isPass = turnRequest.isPassTurn();	
 		if (isPass) {
 			Game game = gameService.passTurn(gameId, playerId);
-			return ResponseEntity.ok(game);
+			RestPlayerGame restPlayerGame = convertModels(game, playerId);
+			return ResponseEntity.ok(restPlayerGame);
 		} else {
 			throw new InvalidPassTurnException();
 		}
-		
 	}
 	
 	@PostMapping(path= "/{gameId}/{playerId}/challenge") 
-	public ResponseEntity<Game> challenge(@PathVariable String gameId, @PathVariable String playerId) {
+	public ResponseEntity<RestPlayerGame> challenge(@PathVariable String gameId, @PathVariable String playerId) {
 		checkInputParameters(gameId, playerId);
 		final Game game = gameService.challenge(gameId, playerId);
-		return ResponseEntity.ok(game); 
+		RestPlayerGame restPlayerGame = convertModels(game, playerId);
+		return ResponseEntity.ok(restPlayerGame);
 	}
 
 	@PostMapping(path= "/{gameId}/{playerId}/forfeit")
-	public ResponseEntity<?> forfeit(@PathVariable String gameId, @PathVariable String playerId) {
+	public ResponseEntity<RestPlayerGame> forfeit(@PathVariable String gameId, @PathVariable String playerId) {
 		checkInputParameters(gameId, playerId);
 		final Game game = gameService.forfeit(gameId, playerId);
-		return ResponseEntity.ok(game);
+		RestPlayerGame restPlayerGame = convertModels(game, playerId);
+		return ResponseEntity.ok(restPlayerGame);
 	}
 	
 	private void checkInputParameters(String gameId, String playerId) {
@@ -217,6 +223,27 @@ public class ScrabbleGameController {
 		restGame.setActivePlayerIndex(game.getActivePlayerIndex());
 		playerGame.setGame(restGame);
 
+		if (game.getLastTurn() != null) {
+			final RestTurn restTurn = new RestTurn();
+			final Turn gameTurn = game.getLastTurn();
+			final TurnAction turnAction = gameTurn.getAction();
+			final List<Player> gamePlayers = game.getPlayers();
+			final int playerIndex = gamePlayers.indexOf(gameTurn.getPlayer());
+			restTurn.setAction(turnAction);
+			restTurn.setPlayerIndex(playerIndex);
+			if (turnAction == TurnAction.CHALLENGE_TURN) {
+				int loseTurnPlayerIndex = gamePlayers.indexOf(gameTurn.getLostTurnPlayer());
+				restTurn.setLoseTurnPlayerIndex(loseTurnPlayerIndex);
+				if (loseTurnPlayerIndex != playerIndex) {
+					//Someone lost a challenge so their points should be negative
+					restTurn.setPoints(-gameTurn.getScore());
+				}
+			} else {
+				restTurn.setPoints(gameTurn.getScore());
+			}
+			playerGame.setLastTurn(restTurn);
+		}
+		
 		return playerGame;
 	}
 

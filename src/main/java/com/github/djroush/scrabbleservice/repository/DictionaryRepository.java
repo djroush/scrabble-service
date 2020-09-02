@@ -1,6 +1,5 @@
 package com.github.djroush.scrabbleservice.repository;
 
-import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
