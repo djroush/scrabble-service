@@ -31,10 +31,10 @@ public class RestPlayer {
 	public void setSkipTurnCount(int skipTurnCount) {
 		this.skipTurnCount = skipTurnCount;
 	}
-	public boolean isForfeited() {
+	public boolean getIsForfeited() {
 		return isForfeited;
 	}
-	public void setForfeited(boolean isForfeited) {
+	public void setIsForfeited(boolean isForfeited) {
 		this.isForfeited = isForfeited;
 	}
 

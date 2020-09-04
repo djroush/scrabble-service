@@ -35,7 +35,6 @@ public class Square implements Comparable<Square> {
 		this.tile = tile;
 	}
 
-	//TODO: do i need to add tile compare here?
 	@Override
 	public int compareTo(Square o) {
 		int index = row*Board.WIDTH + col;

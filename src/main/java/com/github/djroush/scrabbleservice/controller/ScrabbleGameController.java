@@ -203,7 +203,7 @@ public class ScrabbleGameController {
 			restPlayer.setName(player.getName());
 			restPlayer.setScore(player.getScore());
 			restPlayer.setSkipTurnCount(player.getSkipTurnCount());
-			restPlayer.setForfeited(player.getIsForfeited());
+			restPlayer.setIsForfeited(player.getIsForfeited());
 			return restPlayer;
 		}).collect(Collectors.toList());
 		playerGame.setPlayers(restPlayers);

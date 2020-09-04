@@ -19,8 +19,15 @@ import com.github.djroush.scrabbleservice.model.service.Rack;
 
 @Service
 public class BoardService {
-
-	public void checkMoveValid(Board board, SortedSet<Square> squares) {
+	public List<Set<Square>> playSquares(Board board, SortedSet<Square> squares) {
+		checkMoveValid(board, squares);
+		for (Square square: squares) {
+			board.setSquare(square);
+		}
+		return getAdjoinedSquares(board, squares);
+	}
+	
+	private void checkMoveValid(Board board, SortedSet<Square> squares) {
 		boolean correctLength = isCorrectLength(squares);
 		if (!correctLength) {
 			throw new IncorrectTileCountException();
@@ -120,15 +127,8 @@ public class BoardService {
 		}
 		return isConnected;
 	}
-	
-	//FIXME: add squares by default, just modify the values here if they don't already exist
-	public void playSquares(Board board, SortedSet<Square> squares) {
-		for (Square square: squares) {
-			board.setSquare(square);
-		}
-	}
 
-	public List<Set<Square>> getAdjoinedSquares(Board board, SortedSet<Square> squares) {
+	 List<Set<Square>> getAdjoinedSquares(Board board, SortedSet<Square> squares) {
 		final List<Set<Square>> adjoinedSquares = new ArrayList<Set<Square>>();
 		final Square firstSquare = squares.first();
 		final Direction direction = getDirection(squares);
