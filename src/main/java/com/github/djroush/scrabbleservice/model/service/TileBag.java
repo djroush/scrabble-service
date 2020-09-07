@@ -3,6 +3,9 @@ package com.github.djroush.scrabbleservice.model.service;
 import java.util.ArrayList;
 import java.util.List;
 
+import lombok.Getter;
+
+@Getter 
 public class TileBag {
 
 	private List<Tile> bag = new ArrayList<Tile>(100);
@@ -36,11 +39,4 @@ public class TileBag {
 		for (int i = 0; i < 1; i++) bag.add(Tile.Z);
 		for (int i = 0; i < 2; i++) bag.add(Tile.BLANK);
 	}
-	
-	public List<Tile> getBag() {
-		return bag;
-	}
-	public void setBag(List<Tile> bag) {
-		this.bag = bag;
-	}	
 }

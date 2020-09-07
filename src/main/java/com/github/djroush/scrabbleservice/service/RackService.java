@@ -17,7 +17,7 @@ public class RackService {
 		final List<Tile> tiles = rack.getTiles();
 		playedSquares.forEach(square -> {
 			final PlayedTile playedTile = square.getTile();
-			final Tile tile = playedTile.getIsBlank() ? Tile.BLANK : Tile.from(playedTile.getLetter());
+			final Tile tile = playedTile.isBlank() ? Tile.BLANK : Tile.from(playedTile.getLetter());
 			tiles.remove(tile);
 		});
 	}

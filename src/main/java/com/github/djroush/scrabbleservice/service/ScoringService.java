@@ -39,7 +39,7 @@ public class ScoringService {
 				case ZERO_LETTER:  letterValue *= 0; break;
 				}
 				
-				if (!playedTile.getIsBlank()) {
+				if (!playedTile.isBlank()) {
 				    wordScore += letterValue;
 				}
 			}
@@ -57,7 +57,7 @@ public class ScoringService {
     	int col = square.getCol();
 		final PlayedTile tile = square.getTile();
 		
-		if (tile != null && tile.getIsBlank()) {
+		if (tile != null && tile.isBlank()) {
 			return ScoreModifier.ZERO_LETTER;
 		}
 		

@@ -106,4 +106,14 @@ public class TurnService {
 		turn.setScore(0);
 		return turn;
 	}
+	//TODO: fill in some of these values
+	public Turn challengeTurn(Player player) {
+		final Turn turn = new Turn();
+		turn.setAction(TurnAction.CHALLENGE_TURN);
+		turn.setSquares(Collections.emptySortedSet());
+		turn.setPlayer(player);
+		turn.setWordsPlayed(Collections.emptyList());
+		turn.setScore(0);
+		return turn;
+	}
 }

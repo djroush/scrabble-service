@@ -32,6 +32,7 @@ import com.github.djroush.scrabbleservice.model.rest.RestRack;
 import com.github.djroush.scrabbleservice.model.rest.RestTurn;
 import com.github.djroush.scrabbleservice.model.rest.Square;
 import com.github.djroush.scrabbleservice.model.service.Game;
+import com.github.djroush.scrabbleservice.model.service.GameState;
 import com.github.djroush.scrabbleservice.model.service.Player;
 import com.github.djroush.scrabbleservice.model.service.Rack;
 import com.github.djroush.scrabbleservice.model.service.Tile;
@@ -121,6 +122,11 @@ public class ScrabbleGameController {
 		final List<Square> squares = playTilesRequest.getSquares();
 		SortedSet<Square> sortedSquares = new TreeSet<Square>(squares);
 		Game game = gameService.playTurn(gameId, playerId, sortedSquares);
+		if (game.getState() == GameState.ENDGAME) {
+			//@Async methods only work when called from outside their own class
+			gameService.endGame(gameId);
+		}
+
 		RestPlayerGame restPlayerGame = convertModels(game, playerId);
 		return ResponseEntity.ok(restPlayerGame);
 	}
@@ -203,7 +209,7 @@ public class ScrabbleGameController {
 			restPlayer.setName(player.getName());
 			restPlayer.setScore(player.getScore());
 			restPlayer.setSkipTurnCount(player.getSkipTurnCount());
-			restPlayer.setIsForfeited(player.getIsForfeited());
+			restPlayer.setForfeited(player.isForfeited());
 			return restPlayer;
 		}).collect(Collectors.toList());
 		playerGame.setPlayers(restPlayers);
@@ -239,5 +245,4 @@ public class ScrabbleGameController {
 		
 		return playerGame;
 	}
-
 }

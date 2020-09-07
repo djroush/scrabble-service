@@ -7,6 +7,7 @@ import java.util.SortedSet;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.github.djroush.scrabbleservice.exception.GameAlreadyStartedException;
@@ -151,9 +152,6 @@ public class GameService {
 		
 		if (rack.getTiles().size() == 0) {
 			game.setState(GameState.ENDGAME);
-			//TODO: finalize scores 
-//			scoringService.finalizeScores(game.getActivePlayerIndex(), game.getPlayers());
-			//do something else here?
 		} 
 		player.setRack(rack);
 		player.setScore(player.getScore() + turn.getScore());
@@ -205,10 +203,9 @@ public class GameService {
 		final Game game = find(gameId);
 		verifyActiveOrEndgame(game);
 		
+		boolean wordsValid = true;
 		final Turn turn = game.getLastTurn();
 		final List<String> words = turn.getWordsPlayed();
-		boolean wordsValid = true;
-		
 		for (String word: words) {
 			wordsValid |= dictionaryService.searchFor(word);
 			if (!wordsValid) {
@@ -222,10 +219,8 @@ public class GameService {
 			Player player = findPlayer(game, challengingPlayerId);
 			int skipTurnCount = player.getSkipTurnCount();
 			player.setSkipTurnCount(skipTurnCount+1);
-			//TODO: create a turn here
-			//			Turn thisTurn = turnService.createTurn(player);
-			
-			
+			Turn thisTurn = turnService.challengeTurn(player);
+			game.setLastTurn(thisTurn);
 		}
 		
 		update(game);
@@ -236,7 +231,7 @@ public class GameService {
 		verifyActive(game);
 
 		final Player player = findPlayer(game, playerId);
-		player.setIsForfeited(true);
+		player.setForfeited(true);
 		player.setScore(0);
 		if (player.equals(game.getActivePlayer())) {
 			updateNextPlayer(game);
@@ -306,7 +301,7 @@ public class GameService {
 				player.setSkipTurnCount(skipTurnCount-1);
 				continue;
 			}
-			if (!player.getIsForfeited()) {
+			if (!player.isForfeited()) {
 				break;
 			}
 	    } while (true);
@@ -315,6 +310,34 @@ public class GameService {
 		game.setActivePlayer(player);
 	}
 
+	@Async
+	public void endGame(String gameId) {
+		try {
+			Thread.sleep(12_000L);
+		} catch (InterruptedException ie) {
+			//TODO: log an error
+		}
+		final Game game = find(gameId);
+		if (game.getState() == GameState.ENDGAME) {
+			game.setState(GameState.FINISHED);
+			
+			Player finalTurnPlayer = game.getLastTurn().getPlayer();
+			int finalTurnPlayerScore = finalTurnPlayer.getScore();
+			for (Player player: game.getPlayers()) {
+				if (!player.equals(finalTurnPlayer)) {
+					int playerScore = player.getScore();
+					for (Tile tile: player.getRack().getTiles()) {
+						playerScore -= tile.getValue();
+						finalTurnPlayerScore += tile.getValue();
+					}
+					player.setScore(playerScore);
+				}
+			}
+			finalTurnPlayer.setScore(finalTurnPlayerScore);
+			
+			update(game);
+		}
+	}
 	
 	private Game find(String gameId) {
 		Game game = gameRepository.find(gameId);

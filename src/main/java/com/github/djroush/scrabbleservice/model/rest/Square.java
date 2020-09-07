@@ -3,6 +3,10 @@ package com.github.djroush.scrabbleservice.model.rest;
 import com.github.djroush.scrabbleservice.model.service.Board;
 import com.github.djroush.scrabbleservice.model.service.PlayedTile;
 
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter @Setter
 public class Square implements Comparable<Square> {
 	private  int row;
 	private  int col;
@@ -15,26 +19,6 @@ public class Square implements Comparable<Square> {
 		this.col = col;
 	}
 	
-	public void setRow(int row) {
-		this.row = row;
-	}
-	public int getRow() {
-		return row;
-	}
-	public void setCol(int col) {
-		this.col = col;
-	}
-	public int getCol() {
-		return col;
-	}
-	public PlayedTile getTile() {
-		return tile;
-	}
-
-	public void setTile(PlayedTile tile) {
-		this.tile = tile;
-	}
-
 	@Override
 	public int compareTo(Square o) {
 		int index = row*Board.WIDTH + col;
