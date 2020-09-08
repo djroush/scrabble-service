@@ -9,5 +9,6 @@ public class RestGame {
 	public String playerId;
 	public int version;
 	public String state;
+	public int playerIndex;
 	public int activePlayerIndex;
 }

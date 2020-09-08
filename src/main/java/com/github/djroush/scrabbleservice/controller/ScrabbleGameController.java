@@ -33,6 +33,7 @@ import com.github.djroush.scrabbleservice.model.rest.RestTurn;
 import com.github.djroush.scrabbleservice.model.rest.Square;
 import com.github.djroush.scrabbleservice.model.service.Game;
 import com.github.djroush.scrabbleservice.model.service.GameState;
+import com.github.djroush.scrabbleservice.model.service.PlayedTile;
 import com.github.djroush.scrabbleservice.model.service.Player;
 import com.github.djroush.scrabbleservice.model.service.Rack;
 import com.github.djroush.scrabbleservice.model.service.Tile;
@@ -71,7 +72,7 @@ public class ScrabbleGameController {
 	}
 	
 	@GetMapping(path = "/{gameId}/{playerId}")
-	public ResponseEntity<RestPlayerGame> getGame(@PathVariable String gameId, @PathVariable String playerId,  
+	public ResponseEntity<RestPlayerGame> refreshGame(@PathVariable String gameId, @PathVariable String playerId,  
 			@RequestHeader(value="ETag",required=false) String eTag) {
 		checkInputParameters(gameId, playerId);
 		int previousVersion = -1;
@@ -179,17 +180,24 @@ public class ScrabbleGameController {
 		final RestPlayerGame playerGame = new RestPlayerGame();
 		final List<Square> boardSquares = game.getBoard().getSquares();
 		
+		final PlayedTile[] boardTiles = boardSquares.stream()
+				.map(square -> square.getTile())
+				.collect(Collectors.toList())
+				.toArray(new PlayedTile[0]);
+		
 		final RestBoard board = new RestBoard();
-		board.setSquares(boardSquares);
+		board.setSquares(boardTiles);
 		playerGame.setBoard(board);
 		
-		final Optional<Player> currentPlayer = game.getPlayers().stream() 
+		final List<Player> players = game.getPlayers();
+		final Optional<Player> currentPlayer = players.stream() 
 			.filter(player -> playerId.equals(player.getId()))
 			.findFirst();
+		
 		final Rack rack = currentPlayer.isPresent() ? currentPlayer.get().getRack() : null;
+		int playerIndex = currentPlayer.isPresent() ? players.indexOf(currentPlayer.get()) : -1;
 		if (rack != null) {
 			RestRack restRack = new RestRack();
-			
 			List<String> tiles = rack.getTiles().stream().map(tile -> { 
 				String name = tile.getName();
 				return "BLANK".equals(name) ? " " : name;	
@@ -202,10 +210,6 @@ public class ScrabbleGameController {
 		final List<RestPlayer> restPlayers = game.getPlayers().stream().
 		    map(player -> {
 		    final RestPlayer restPlayer = new RestPlayer();
-		    //Don't show other people's ids so they can't make calls to the service pretending to be the other user
-		    if (playerId.equals(player.getId())) {
-		    	restPlayer.setId(player.getId());
-		    }
 			restPlayer.setName(player.getName());
 			restPlayer.setScore(player.getScore());
 			restPlayer.setSkipTurnCount(player.getSkipTurnCount());
@@ -214,10 +218,13 @@ public class ScrabbleGameController {
 		}).collect(Collectors.toList());
 		playerGame.setPlayers(restPlayers);
 
+		
+
 		final RestGame restGame = new RestGame();
 		restGame.setId(game.getId());
-		restGame.setPlayerId(playerId);
 		restGame.setVersion(game.getVersion());
+		restGame.setPlayerId(playerId);
+		restGame.setPlayerIndex(playerIndex);
 		restGame.setState(game.getState().name());
 		restGame.setActivePlayerIndex(game.getActivePlayerIndex());
 		playerGame.setGame(restGame);
@@ -227,9 +234,9 @@ public class ScrabbleGameController {
 			final Turn gameTurn = game.getLastTurn();
 			final TurnAction turnAction = gameTurn.getAction();
 			final List<Player> gamePlayers = game.getPlayers();
-			final int playerIndex = gamePlayers.indexOf(gameTurn.getPlayer());
+			final int gamePlayerIndex = gamePlayers.indexOf(gameTurn.getPlayer());
 			restTurn.setAction(turnAction);
-			restTurn.setPlayerIndex(playerIndex);
+			restTurn.setPlayerIndex(gamePlayerIndex);
 			if (turnAction == TurnAction.CHALLENGE_TURN) {
 				int loseTurnPlayerIndex = gamePlayers.indexOf(gameTurn.getLostTurnPlayer());
 				restTurn.setLoseTurnPlayerIndex(loseTurnPlayerIndex);

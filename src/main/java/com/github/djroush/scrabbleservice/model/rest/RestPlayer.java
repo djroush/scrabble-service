@@ -5,7 +5,6 @@ import lombok.Setter;
 
 @Getter @Setter
 public class RestPlayer {
-	private String id;
 	private String name;
 	private int score;
 	private int skipTurnCount;
