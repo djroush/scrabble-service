@@ -122,10 +122,10 @@ public class ScrabbleGameController {
 		
 		final List<Square> squares = playTilesRequest.getSquares();
 		SortedSet<Square> sortedSquares = new TreeSet<Square>(squares);
-		Game game = gameService.playTurn(gameId, playerId, sortedSquares);
+		Game game = gameService.playTiles(gameId, playerId, sortedSquares);
 		if (game.getState() == GameState.ENDGAME) {
 			//@Async methods only work when called from outside their own class
-			gameService.endGame(gameId);
+			gameService.endGame(gameId, game.getLastTurn().getPlayer());
 		}
 
 		RestPlayerGame restPlayerGame = convertModels(game, playerId);
@@ -218,8 +218,7 @@ public class ScrabbleGameController {
 		}).collect(Collectors.toList());
 		playerGame.setPlayers(restPlayers);
 
-		
-
+		final List<Player> gamePlayers = game.getPlayers();
 		final RestGame restGame = new RestGame();
 		restGame.setId(game.getId());
 		restGame.setVersion(game.getVersion());
@@ -227,13 +226,15 @@ public class ScrabbleGameController {
 		restGame.setPlayerIndex(playerIndex);
 		restGame.setState(game.getState().name());
 		restGame.setActivePlayerIndex(game.getActivePlayerIndex());
+		restGame.setCanChallenge(game.isCanChallenge());
+		int lastPlayerToPlayTilesIndex = gamePlayers.indexOf(game.getLastPlayerToPlayTiles());
+		restGame.setLastPlayerToPlayTilesIndex(lastPlayerToPlayTilesIndex);
 		playerGame.setGame(restGame);
 
 		if (game.getLastTurn() != null) {
 			final RestTurn restTurn = new RestTurn();
 			final Turn gameTurn = game.getLastTurn();
 			final TurnAction turnAction = gameTurn.getAction();
-			final List<Player> gamePlayers = game.getPlayers();
 			final int gamePlayerIndex = gamePlayers.indexOf(gameTurn.getPlayer());
 			restTurn.setAction(turnAction);
 			restTurn.setPlayerIndex(gamePlayerIndex);

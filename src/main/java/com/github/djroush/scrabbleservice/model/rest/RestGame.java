@@ -11,4 +11,6 @@ public class RestGame {
 	public String state;
 	public int playerIndex;
 	public int activePlayerIndex;
+	public int lastPlayerToPlayTilesIndex;
+	public boolean canChallenge;
 }

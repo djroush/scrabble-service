@@ -1,5 +1,7 @@
 package com.github.djroush.scrabbleservice.service;
 
+import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -21,6 +23,7 @@ import com.github.djroush.scrabbleservice.model.rest.Square;
 import com.github.djroush.scrabbleservice.model.service.Board;
 import com.github.djroush.scrabbleservice.model.service.Game;
 import com.github.djroush.scrabbleservice.model.service.GameState;
+import com.github.djroush.scrabbleservice.model.service.PlayedTile;
 import com.github.djroush.scrabbleservice.model.service.Player;
 import com.github.djroush.scrabbleservice.model.service.Rack;
 import com.github.djroush.scrabbleservice.model.service.Tile;
@@ -121,7 +124,7 @@ public class GameService {
 		}
 		final TileBag tileBag = game.getTileBag();
 		final List<Player> players = game.getPlayers();
-		tileBagService.fillRacks(tileBag, players);
+		players.forEach(player -> tileBagService.fillRack(tileBag, player.getRack()));
 		final Player firstPlayer = game.getPlayers().get(0);
 		game.setActivePlayerIndex(0);
 		game.setActivePlayer(firstPlayer);
@@ -134,20 +137,25 @@ public class GameService {
 	// END PENDING GAME ACTIONS
 
 	//START ACTIVE GAME ACTIONS
-	
-	public Game playTurn(String gameId, String playerId, SortedSet<Square> squares) {
+	public Game playTiles(String gameId, String playerId, SortedSet<Square> squares) {
 		final Game game = find(gameId);
 		verifyActive(game);
 		final Player player = findPlayer(game, playerId);
 		isPlayerTurn(game, player);
+
+		final Rack rack = player.getRack();
+		List<Tile> previousTiles = rack.getPreviousTiles();
+		previousTiles.clear();
+		previousTiles.addAll(rack.getTiles());
+		
 		
 		final Board board = game.getBoard();
 		final List<Set<Square>> adjoinedSquaresList = boardService.playSquares(board,  squares);
 		final Turn turn = turnService.playTurn(player, squares, adjoinedSquaresList);
 		
-		final Rack rack = player.getRack();
 		final TileBag tileBag = game.getTileBag();
 		rackService.replaceTiles(rack, squares);
+		
 		tileBagService.fillRack(tileBag, rack);
 		
 		if (rack.getTiles().size() == 0) {
@@ -156,7 +164,10 @@ public class GameService {
 		player.setRack(rack);
 		player.setScore(player.getScore() + turn.getScore());
 
+		game.setLastPlayerToPlayTiles(player);
 		game.setLastTurn(turn);
+		game.setCanChallenge(true);
+		
 		updateNextPlayer(game);
 		update(game);
 		return game;
@@ -202,28 +213,74 @@ public class GameService {
 	public Game challenge(String gameId, String challengingPlayerId) {
 		final Game game = find(gameId);
 		verifyActiveOrEndgame(game);
-		
+
+		final Turn lastTurn = game.getLastTurn();
+		final Player challengeTurnPlayer = findPlayer(game, challengingPlayerId);
+		final Player playTilesPlayer = lastTurn.getPlayer();
+				
+		final List<String> words = lastTurn.getWordsPlayed();
 		boolean wordsValid = true;
-		final Turn turn = game.getLastTurn();
-		final List<String> words = turn.getWordsPlayed();
 		for (String word: words) {
-			wordsValid |= dictionaryService.searchFor(word);
+			wordsValid &= dictionaryService.searchFor(word);
 			if (!wordsValid) {
 				break;
 			}
 		}
-		
-		if (wordsValid) {
-			turnService.reverseLastTurn(game);
+
+		Player losingPlayer = null;
+		boolean challengeWon = !wordsValid;
+		if (challengeWon) {
+			losingPlayer = playTilesPlayer;
+			game.setState(GameState.ACTIVE);
+
+			
+		//Revert previous turn
+			//Remove tiles from board
+			List<Square> squares = game.getBoard().getSquares();
+			List<Tile> tiles =  new LinkedList<Tile>();
+			SortedSet<Square> playedSquares = lastTurn.getSquares();
+			playedSquares.forEach(square -> {
+				int index = square.getRow()*15 + square.getCol();
+				Square boardSquare = squares.get(index);
+				final PlayedTile playedTile = square.getTile();
+				final Tile tile = playedTile.isBlank() ? Tile.BLANK : Tile.from(playedTile.getLetter()); 
+				tiles.add(tile);
+				boardSquare.setTile(null);
+				squares.set(index, boardSquare);
+			});
+
+			//Determine the tiles drawn from the bag and return them
+			final Rack rack = losingPlayer.getRack();
+			List<Tile> drawnTiles = new ArrayList<>(tiles);
+			drawnTiles.addAll(rack.getTiles());
+			
+			rack.getPreviousTiles()
+				.forEach(tile -> drawnTiles.remove(tile));
+			tileBagService.returnTiles(game.getTileBag(), drawnTiles);
+
+			//Reset the players rack to the previous state 
+			rack.getTiles().clear();
+			rack.getTiles().addAll(rack.getPreviousTiles());
+			rack.getPreviousTiles().clear();
+			
+			int score = playTilesPlayer.getScore() - lastTurn.getScore();
+			playTilesPlayer.setScore(score);
 		} else {
-			Player player = findPlayer(game, challengingPlayerId);
-			int skipTurnCount = player.getSkipTurnCount();
-			player.setSkipTurnCount(skipTurnCount+1);
-			Turn thisTurn = turnService.challengeTurn(player);
-			game.setLastTurn(thisTurn);
+			losingPlayer = challengeTurnPlayer;
 		}
+		int skippedTurnCount = losingPlayer.getSkipTurnCount() + 1;
+		if (losingPlayer.equals(game.getActivePlayer())) {
+			updateNextPlayer(game);
+		} else {
+			losingPlayer.setSkipTurnCount(skippedTurnCount);
+		}
+		 
+		final Turn thisTurn = turnService.challengeTurn(lastTurn, challengeTurnPlayer, losingPlayer);
 		
+		game.setCanChallenge(false);
+		game.setLastTurn(thisTurn);
 		update(game);
+		
 		return game;
 	}
 	public Game forfeit(String gameId, String playerId) {
@@ -232,7 +289,6 @@ public class GameService {
 
 		final Player player = findPlayer(game, playerId);
 		player.setForfeited(true);
-		player.setScore(0);
 		if (player.equals(game.getActivePlayer())) {
 			updateNextPlayer(game);
 		}
@@ -311,17 +367,15 @@ public class GameService {
 	}
 
 	@Async
-	public void endGame(String gameId) {
+	public void endGame(String gameId, Player finalTurnPlayer) {
 		try {
 			Thread.sleep(12_000L);
 		} catch (InterruptedException ie) {
 			//TODO: log an error
 		}
 		final Game game = find(gameId);
-		if (game.getState() == GameState.ENDGAME) {
+		if (game.getState() == GameState.ENDGAME && game.getTileBag().getBag().isEmpty()) {
 			game.setState(GameState.FINISHED);
-			
-			Player finalTurnPlayer = game.getLastTurn().getPlayer();
 			int finalTurnPlayerScore = finalTurnPlayer.getScore();
 			for (Player player: game.getPlayers()) {
 				if (!player.equals(finalTurnPlayer)) {
@@ -334,7 +388,6 @@ public class GameService {
 				}
 			}
 			finalTurnPlayer.setScore(finalTurnPlayerScore);
-			
 			update(game);
 		}
 	}
@@ -359,11 +412,11 @@ public class GameService {
 		if (turn != null) {
 			if (turn.getScore() == 0 && (turn.getAction() != TurnAction.PLAY_TILES)) {
 				//TODO: This needs to be adjusted for passes as well, probably need a second consecutiveScorelessTurns counter 
-				int consecutiveScorelessTurns = game.getConsecutiveScorelessTurns();
-				game.setConsecutiveScorelessTurns(consecutiveScorelessTurns+1);
-				if (consecutiveScorelessTurns == 7) {
-					game.setState(GameState.FINISHED);
-				}
+//				int consecutiveScorelessTurns = game.getConsecutiveScorelessTurns();
+//				game.setConsecutiveScorelessTurns(consecutiveScorelessTurns+1);
+//				if (consecutiveScorelessTurns == 7) {
+//					game.setState(GameState.FINISHED);
+//				}
 			}
 		}
 		gameRepository.update(game);

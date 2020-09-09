@@ -11,4 +11,5 @@ import lombok.Setter;
 public class Rack {
 	public static final int MAX_TILES = 7;
 	private List<Tile> tiles = new LinkedList<Tile>();
+	private List<Tile> previousTiles = new LinkedList<Tile>();
 }

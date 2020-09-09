@@ -18,8 +18,10 @@ public class Game {
 	private TileBag tileBag;
 	private int version = 0;
 	private int consecutiveScorelessTurns = 0;
-	private int activePlayerIndex = 0;
+	private int activePlayerIndex = -1;
+	private boolean canChallenge = false;
 
 	private List<Player> players = new ArrayList<Player>(MAX_PLAYERS);
 	private Player activePlayer = null;
+	private Player lastPlayerToPlayTiles = null;
 }

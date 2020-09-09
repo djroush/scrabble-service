@@ -5,7 +5,6 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import com.github.djroush.scrabbleservice.model.service.Player;
 import com.github.djroush.scrabbleservice.model.service.Rack;
 import com.github.djroush.scrabbleservice.model.service.Tile;
 import com.github.djroush.scrabbleservice.model.service.TileBag;
@@ -13,17 +12,14 @@ import com.github.djroush.scrabbleservice.model.service.TileBag;
 @Service
 public class TileBagService {
 
-	public void fillRacks(TileBag tileBag, List<Player> players) {
-		players.forEach(player -> fillRack(tileBag, player.getRack()));
-	}
-	
-	public void fillRack(TileBag tileBag, Rack rack) {
+	public List<Tile> fillRack(TileBag tileBag, Rack rack) {
 		int missingTilesCount = Rack.MAX_TILES - rack.getTiles().size(); 
 		List<Tile> newTiles = remove(tileBag, missingTilesCount);
 		rack.getTiles().addAll(newTiles);
+		return newTiles;
 	}
 	
-	public List<Tile> remove(TileBag tileBag, int tileCount) {
+	private List<Tile> remove(TileBag tileBag, int tileCount) {
 		final List<Tile> removedTiles = new ArrayList<Tile>(tileCount);
 		final List<Tile> bag = tileBag.getBag();
 		 int tilesRemaining = bag.size();

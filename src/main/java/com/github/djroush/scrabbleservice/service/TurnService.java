@@ -10,7 +10,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.github.djroush.scrabbleservice.model.rest.Square;
-import com.github.djroush.scrabbleservice.model.service.Game;
 import com.github.djroush.scrabbleservice.model.service.Player;
 import com.github.djroush.scrabbleservice.model.service.Turn;
 import com.github.djroush.scrabbleservice.model.service.TurnAction;
@@ -59,24 +58,6 @@ public class TurnService {
 		return turn;
 	}
 	
-	//TODO: this should only handle challenge failed, player stuff should be done elsewhere
-	public Turn reverseLastTurn(Game game) {
-		Turn turn = game.getLastTurn();
-		Player player = turn.getPlayer();
-		SortedSet<Square> playedSquares = turn.getSquares();
-		playedSquares.forEach(square -> {
-			square.setTile(null);
-		});
-		int score = player.getScore();
-		int skippedTurnCount  = player.getSkipTurnCount();
-		player.setScore(score - turn.getScore());
-		player.setSkipTurnCount(skippedTurnCount + 1);
-		turn.setAction(TurnAction.CHALLENGE_TURN);
-		// TODO Finish coding here
-		
-		return turn;
-	}
-
 	public Turn exchangeTiles(Player player) {
 		final Turn turn = new Turn();
 		turn.setAction(TurnAction.EXCHANGE_TILES);
@@ -106,14 +87,16 @@ public class TurnService {
 		turn.setScore(0);
 		return turn;
 	}
-	//TODO: fill in some of these values
-	public Turn challengeTurn(Player player) {
+
+	public Turn challengeTurn(Turn lastTurn, Player challengingPlayer, Player losingPlayer) {
 		final Turn turn = new Turn();
 		turn.setAction(TurnAction.CHALLENGE_TURN);
-		turn.setSquares(Collections.emptySortedSet());
-		turn.setPlayer(player);
-		turn.setWordsPlayed(Collections.emptyList());
+		turn.setChallengeWon(!challengingPlayer.equals(losingPlayer));
+		turn.setLostTurnPlayer(losingPlayer);
+		turn.setPlayer(challengingPlayer);
 		turn.setScore(0);
+		turn.setSquares(Collections.emptySortedSet());
+		turn.setWordsPlayed(Collections.emptyList());
 		return turn;
 	}
 }
