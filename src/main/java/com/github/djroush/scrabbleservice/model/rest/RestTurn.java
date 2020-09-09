@@ -11,5 +11,6 @@ public class RestTurn {
 	private int playerIndex;
 	private int loseTurnPlayerIndex;
 	private int points;
+	private int[] newTileIndexes;
 }
 

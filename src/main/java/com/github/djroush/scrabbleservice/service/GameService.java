@@ -1,6 +1,7 @@
 package com.github.djroush.scrabbleservice.service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
@@ -118,12 +119,15 @@ public class GameService {
 	public Game start(String gameId, String playerId) {
 		final Game game = find(gameId);
 		verifyPending(game);
-		final int numberOfPlayers = game.getPlayers().size();
-		if (numberOfPlayers < MIN_PLAYERS) {
+		final List<Player> players = game.getPlayers();
+		if (players.size() < MIN_PLAYERS) {
 			throw new IncorrectPlayerCountException();
 		}
 		final TileBag tileBag = game.getTileBag();
-		final List<Player> players = game.getPlayers();
+
+		//Randomize the first player
+		Collections.shuffle(players);
+		
 		players.forEach(player -> tileBagService.fillRack(tileBag, player.getRack()));
 		final Player firstPlayer = game.getPlayers().get(0);
 		game.setActivePlayerIndex(0);

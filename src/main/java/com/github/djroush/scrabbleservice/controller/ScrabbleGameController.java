@@ -3,6 +3,7 @@ package com.github.djroush.scrabbleservice.controller;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
@@ -231,19 +232,24 @@ public class ScrabbleGameController {
 		restGame.setLastPlayerToPlayTilesIndex(lastPlayerToPlayTilesIndex);
 		playerGame.setGame(restGame);
 
-		if (game.getLastTurn() != null) {
+		final Turn gameTurn = game.getLastTurn();
+		if (gameTurn != null) {
 			final RestTurn restTurn = new RestTurn();
-			final Turn gameTurn = game.getLastTurn();
 			final TurnAction turnAction = gameTurn.getAction();
 			final int gamePlayerIndex = gamePlayers.indexOf(gameTurn.getPlayer());
+			final Set<Square> playedSquares = gameTurn.getSquares();
+			final int[] newTileIndexes = playedSquares.stream()
+					.mapToInt(square -> square.getRow()*15+square.getCol())
+					.toArray();
+			
 			restTurn.setAction(turnAction);
 			restTurn.setPlayerIndex(gamePlayerIndex);
+			restTurn.setNewTileIndexes(newTileIndexes);
 			if (turnAction == TurnAction.CHALLENGE_TURN) {
 				int loseTurnPlayerIndex = gamePlayers.indexOf(gameTurn.getLostTurnPlayer());
 				restTurn.setLoseTurnPlayerIndex(loseTurnPlayerIndex);
 				if (loseTurnPlayerIndex != playerIndex) {
-					//Someone lost a challenge so their points should be negative
-					restTurn.setPoints(-gameTurn.getScore());
+					restTurn.setPoints(0);
 				}
 			} else {
 				restTurn.setPoints(gameTurn.getScore());
