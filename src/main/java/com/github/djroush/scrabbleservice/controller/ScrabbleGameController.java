@@ -19,10 +19,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.github.djroush.scrabbleservice.exception.InvalidInputException;
+import com.github.djroush.scrabbleservice.model.rest.AddPlayerRequest;
 import com.github.djroush.scrabbleservice.model.rest.ExchangeRequest;
 import com.github.djroush.scrabbleservice.model.rest.PlayTilesRequest;
 import com.github.djroush.scrabbleservice.model.rest.RestBoard;
@@ -51,7 +51,9 @@ public class ScrabbleGameController {
 
 	@PostMapping(path = "")
 	//FIXME: read player from body not querystring!
-	public ResponseEntity<RestPlayerGame> createGame(@NonNull @RequestParam("player") String playerName) {
+	public ResponseEntity<RestPlayerGame> createGame(@NonNull @RequestBody AddPlayerRequest requestBody) {
+		String playerName = requestBody.getName();
+
 		Game game = gameService.newGame(playerName);
 		String playerId = game.getPlayers().get(game.getPlayers().size()-1).getId();
 		RestPlayerGame restPlayerGame =convertModels(game, playerId);
@@ -61,11 +63,10 @@ public class ScrabbleGameController {
 	//TODO: make an actual request model here!
 	//FIXME: read player from body not querystring!
 	@PostMapping(path = "/{gameId}")
-	public ResponseEntity<RestPlayerGame> joinGame(@PathVariable String gameId, @RequestParam("player") String playerName) {
+	public ResponseEntity<RestPlayerGame> joinGame(@PathVariable String gameId, @RequestBody AddPlayerRequest requestBody) {
+		String playerName = requestBody.getName();
 		checkInputParameters(gameId, playerName);
-		if ("null".equals(gameId)) {
-			throw new InvalidInputException();
-		}
+
 		Game game= gameService.addPlayer(gameId, playerName);
 		String playerId = game.getPlayers().get(game.getPlayers().size()-1).getId();
 		RestPlayerGame restPlayerGame = convertModels(game, playerId);
@@ -172,7 +173,7 @@ public class ScrabbleGameController {
 	}
 	
 	private void checkInputParameters(String gameId, String playerId) {
-		if (gameId == null || gameId.isBlank() || "null".equals(gameId)) {
+		if (gameId == null || gameId.isBlank() || "".equals(gameId)) {
 			throw new InvalidInputException();
 		}
 	}
