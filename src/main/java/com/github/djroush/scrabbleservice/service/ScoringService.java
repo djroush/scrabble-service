@@ -56,11 +56,7 @@ public class ScoringService {
     	int row = square.getRow();
     	int col = square.getCol();
 		final PlayedTile tile = square.getTile();
-		
-		if (tile != null && tile.isBlank()) {
-			return ScoreModifier.ZERO_LETTER;
-		}
-		
+				
 		if ((row % 7 == 0 && col % 8 ==  3) ||
 			(row % 8 == 3 && col % 7 ==  0) || 
 			(row % 10 == 2 && (col == 6 || col == 8)) ||
@@ -69,6 +65,8 @@ public class ScoringService {
 			return ScoreModifier.DOUBLE_LETTER;
 		} else if (row % 4 == 1 && col % 4 == 1 && !(row % 12 == 1 && col % 12 == 1)) {
 			return ScoreModifier.TRIPLE_LETTER;
+		} else if (tile != null && tile.isBlank()) {
+			return ScoreModifier.ZERO_LETTER;
 		} else if ((row == col || row + col == 14) && 
 			      ((row >= 1 && row <= 4)  || (row == 7 && col == 7) || (row >= 10 && row <= 13)))  {
 			return ScoreModifier.DOUBLE_WORD;
