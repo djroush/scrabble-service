@@ -52,9 +52,9 @@ public class ScoringService {
 		return turnScore;		
 	}
 	
-    public ScoreModifier getScoreModifier(Square square) {
-    	int row = square.getRow();
-    	int col = square.getCol();
+ 	public ScoreModifier getScoreModifier(Square square) {
+		int row = square.getRow();
+		int col = square.getCol();
 		final PlayedTile tile = square.getTile();
 		
 		 if ((row == col || row + col == 14) && 
@@ -75,5 +75,4 @@ public class ScoringService {
 		}
 		return ScoreModifier.SINGLE_LETTER;
     }
-
 }

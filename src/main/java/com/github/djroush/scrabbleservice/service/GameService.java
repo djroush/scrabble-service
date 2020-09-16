@@ -302,6 +302,13 @@ public class GameService {
 		tileBagService.returnTiles(tileBag, tiles);
 		
 		final Turn turn = turnService.forfeitGame(player);
+
+		long activePlayers = game.getPlayers().stream()
+			.filter(gamePlayer -> !gamePlayer.isForfeited()).count();
+		if (activePlayers <= 1L) {
+			game.setState(GameState.ABORTED);
+		}
+
 		game.setLastTurn(turn);
 		update(game);
 		return game;
