@@ -19,7 +19,6 @@ public class Game {
 	private int version = 0;
 	private int consecutiveScorelessTurns = 0;
 	private int activePlayerIndex = -1;
-	private boolean canChallenge = false;
 
 	private List<Player> players = new ArrayList<Player>(MAX_PLAYERS);
 	private Player activePlayer = null;

@@ -1,10 +1,13 @@
 package com.github.djroush.scrabbleservice.service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
+import com.github.djroush.scrabbleservice.model.service.Game;
 import com.github.djroush.scrabbleservice.model.service.Rack;
 import com.github.djroush.scrabbleservice.model.service.Tile;
 import com.github.djroush.scrabbleservice.model.service.TileBag;
@@ -12,6 +15,26 @@ import com.github.djroush.scrabbleservice.model.service.TileBag;
 @Service
 public class TileBagService {
 
+
+	public List<Tile> fillRack(Game game) {
+		TileBag tileBag = game.getTileBag();
+		Optional<Rack> unfullRack = game.getPlayers().stream()
+			.filter(player -> !player.isForfeited())
+		    .map(player -> player.getRack())
+		    .filter(rack -> rack.getTiles().size() < 7)
+		    .findFirst();
+
+		if (unfullRack.isPresent()) {
+			Rack rack = unfullRack.get();
+			int missingTilesCount = Rack.MAX_TILES - rack.getTiles().size(); 
+			List<Tile> newTiles = remove(tileBag, missingTilesCount);
+			rack.getTiles().addAll(newTiles);
+			return newTiles;
+		}
+		return Collections.emptyList();
+	}
+
+	
 	public List<Tile> fillRack(TileBag tileBag, Rack rack) {
 		int missingTilesCount = Rack.MAX_TILES - rack.getTiles().size(); 
 		List<Tile> newTiles = remove(tileBag, missingTilesCount);

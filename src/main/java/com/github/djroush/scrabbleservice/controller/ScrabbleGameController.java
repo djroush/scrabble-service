@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.github.djroush.scrabbleservice.exception.InvalidInputException;
 import com.github.djroush.scrabbleservice.model.rest.AddPlayerRequest;
+import com.github.djroush.scrabbleservice.model.rest.ChallengeRequest;
 import com.github.djroush.scrabbleservice.model.rest.ExchangeRequest;
 import com.github.djroush.scrabbleservice.model.rest.PlayTilesRequest;
 import com.github.djroush.scrabbleservice.model.rest.RestBoard;
@@ -50,7 +51,6 @@ public class ScrabbleGameController {
 	private GameService gameService;
 
 	@PostMapping(path = "")
-	//FIXME: read player from body not querystring!
 	public ResponseEntity<RestPlayerGame> createGame(@NonNull @RequestBody AddPlayerRequest requestBody) {
 		String playerName = requestBody.getName();
 
@@ -60,8 +60,6 @@ public class ScrabbleGameController {
 		return ResponseEntity.ok(restPlayerGame);  
 	}
 
-	//TODO: make an actual request model here!
-	//FIXME: read player from body not querystring!
 	@PostMapping(path = "/{gameId}")
 	public ResponseEntity<RestPlayerGame> joinGame(@PathVariable String gameId, @RequestBody AddPlayerRequest requestBody) {
 		String playerName = requestBody.getName();
@@ -119,15 +117,17 @@ public class ScrabbleGameController {
 
 	@PostMapping(path = "/{gameId}/{playerId}/play", consumes = "application/json")
 	public ResponseEntity<RestPlayerGame> play(@PathVariable String gameId, @PathVariable String playerId,
-			@RequestBody PlayTilesRequest playTilesRequest) throws IOException {
+			@RequestBody PlayTilesRequest playTilesRequest) {
 		checkInputParameters(gameId, playerId);
 		
 		final List<Square> squares = playTilesRequest.getSquares();
 		SortedSet<Square> sortedSquares = new TreeSet<Square>(squares);
 		Game game = gameService.playTiles(gameId, playerId, sortedSquares);
+		//@Async methods only work when called from outside their own class
 		if (game.getState() == GameState.ENDGAME) {
-			//@Async methods only work when called from outside their own class
 			gameService.endGame(gameId, game.getLastTurn().getPlayer());
+		} else {
+			gameService.setChallengeTimer(game);
 		}
 
 		RestPlayerGame restPlayerGame = convertModels(game, playerId);
@@ -136,10 +136,10 @@ public class ScrabbleGameController {
 	
 	@PostMapping(path = "/{gameId}/{playerId}/exchange", consumes = "application/json")
 	public ResponseEntity<RestPlayerGame> exchange(@PathVariable String gameId, @PathVariable String playerId,
-			@RequestBody ExchangeRequest turnRequest) throws IOException {
+			@RequestBody ExchangeRequest exchangeRequest) throws IOException {
 		checkInputParameters(gameId, playerId);
 		
-		final List<Tile> tiles = turnRequest.getTiles().stream()
+		final List<Tile> tiles = exchangeRequest.getTiles().stream()
 				.map(t -> t.isBlank() ? Tile.BLANK : Tile.from(t.getLetter().charAt(0)))
 				.collect(Collectors.toList());
 		Game game = gameService.exchange(gameId, playerId, tiles);
@@ -148,7 +148,7 @@ public class ScrabbleGameController {
 	}
 
 	@PostMapping(path = "/{gameId}/{playerId}/pass", consumes = "application/json")
-	public ResponseEntity<RestPlayerGame> passTurn(@PathVariable String gameId, @PathVariable String playerId) throws IOException {
+	public ResponseEntity<RestPlayerGame> passTurn(@PathVariable String gameId, @PathVariable String playerId) {
 		checkInputParameters(gameId, playerId);
 		
 		Game game = gameService.passTurn(gameId, playerId);
@@ -157,9 +157,12 @@ public class ScrabbleGameController {
 	}
 	
 	@PostMapping(path= "/{gameId}/{playerId}/challenge") 
-	public ResponseEntity<RestPlayerGame> challenge(@PathVariable String gameId, @PathVariable String playerId) {
+	public ResponseEntity<RestPlayerGame> challenge(@PathVariable String gameId, @PathVariable String playerId,
+			@RequestBody ChallengeRequest challengeRequest) {
 		checkInputParameters(gameId, playerId);
-		final Game game = gameService.challenge(gameId, playerId);
+		boolean challengeTurn = challengeRequest.isChallengeTurn();
+		int version = challengeRequest.getVersion();
+		final Game game = gameService.challenge(gameId, playerId, challengeTurn, version);
 		RestPlayerGame restPlayerGame = convertModels(game, playerId);
 		return ResponseEntity.ok(restPlayerGame);
 	}
@@ -228,7 +231,6 @@ public class ScrabbleGameController {
 		restGame.setPlayerIndex(playerIndex);
 		restGame.setState(game.getState().name());
 		restGame.setActivePlayerIndex(game.getActivePlayerIndex());
-		restGame.setCanChallenge(game.isCanChallenge());
 		int lastPlayerToPlayTilesIndex = gamePlayers.indexOf(game.getLastPlayerToPlayTiles());
 		restGame.setLastPlayerToPlayTilesIndex(lastPlayerToPlayTilesIndex);
 		playerGame.setGame(restGame);
@@ -239,11 +241,13 @@ public class ScrabbleGameController {
 			final TurnAction turnAction = gameTurn.getAction();
 			final int gamePlayerIndex = gamePlayers.indexOf(gameTurn.getPlayer());
 			final Set<Square> playedSquares = gameTurn.getSquares();
-			final int[] newTileIndexes = playedSquares.stream()
+			final int[] newTileIndexes = playedSquares == null ? new int[] {} : 
+				playedSquares.stream()
 					.mapToInt(square -> square.getRow()*15+square.getCol())
 					.toArray();
 			
 			restTurn.setAction(turnAction);
+			restTurn.setState(gameTurn.getTurnState());
 			restTurn.setPlayerIndex(gamePlayerIndex);
 			restTurn.setNewTileIndexes(newTileIndexes);
 			if (turnAction == TurnAction.CHALLENGE_TURN) {
@@ -253,6 +257,9 @@ public class ScrabbleGameController {
 					restTurn.setPoints(0);
 				}
 			} else {
+				if (turnAction == TurnAction.PLAY_TILES) {
+					restTurn.setWordsPlayed(gameTurn.getWordsPlayed());
+				}
 				restTurn.setPoints(gameTurn.getScore());
 			}
 			playerGame.setLastTurn(restTurn);

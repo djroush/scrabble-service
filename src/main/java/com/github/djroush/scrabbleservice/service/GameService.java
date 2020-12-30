@@ -17,6 +17,8 @@ import com.github.djroush.scrabbleservice.exception.GameAlreadyStartedException;
 import com.github.djroush.scrabbleservice.exception.GameFullException;
 import com.github.djroush.scrabbleservice.exception.GameNotActiveException;
 import com.github.djroush.scrabbleservice.exception.IncorrectPlayerCountException;
+import com.github.djroush.scrabbleservice.exception.InvalidActionException;
+import com.github.djroush.scrabbleservice.exception.OutdatedGameException;
 import com.github.djroush.scrabbleservice.exception.TurnOutofOrderException;
 import com.github.djroush.scrabbleservice.exception.UnknownGameException;
 import com.github.djroush.scrabbleservice.exception.UnknownPlayerException;
@@ -31,6 +33,7 @@ import com.github.djroush.scrabbleservice.model.service.Tile;
 import com.github.djroush.scrabbleservice.model.service.TileBag;
 import com.github.djroush.scrabbleservice.model.service.Turn;
 import com.github.djroush.scrabbleservice.model.service.TurnAction;
+import com.github.djroush.scrabbleservice.model.service.TurnState;
 import com.github.djroush.scrabbleservice.repository.GameRepository;
 
 @Service
@@ -60,14 +63,14 @@ public class GameService {
 		game.setId(gameId);
 		game.setState(GameState.PENDING);
 		addPlayer(game, playerName);
+		Turn turn = turnService.gameStart();
+		game.setLastTurn(turn);
 
 		insert(game);
 		return game;
 	}
 	
-	//This method exists so that a method using gameRepository is not coupled to a public API method 
 	public Game refreshGame(String gameId, String playerId) {
-		//If an error exists or a browser is closed this can reopen
 		final Game game = find(gameId);
 		return game;
 	}
@@ -125,7 +128,7 @@ public class GameService {
 		}
 		final TileBag tileBag = game.getTileBag();
 
-		//Randomize the first player
+		//Randomize the order of the players
 		Collections.shuffle(players);
 		
 		players.forEach(player -> tileBagService.fillRack(tileBag, player.getRack()));
@@ -144,8 +147,10 @@ public class GameService {
 	public Game playTiles(String gameId, String playerId, SortedSet<Square> squares) {
 		final Game game = find(gameId);
 		verifyActive(game);
+		verifyActionState(game.getLastTurn());
 		final Player player = findPlayer(game, playerId);
 		isPlayerTurn(game, player);
+
 
 		final Rack rack = player.getRack();
 		List<Tile> previousTiles = rack.getPreviousTiles();
@@ -156,13 +161,11 @@ public class GameService {
 		final Board board = game.getBoard();
 		final List<Set<Square>> adjoinedSquaresList = boardService.playSquares(board,  squares);
 		final Turn turn = turnService.playTurn(player, squares, adjoinedSquaresList);
+		final boolean noTilesRemaining = tileBagService.isEmpty(game.getTileBag());
 		
-		final TileBag tileBag = game.getTileBag();
 		rackService.replaceTiles(rack, squares);
 		
-		tileBagService.fillRack(tileBag, rack);
-		
-		if (rack.getTiles().size() == 0) {
+		if (rack.getTiles().size() == 0 && noTilesRemaining) {
 			game.setState(GameState.ENDGAME);
 		} 
 		player.setRack(rack);
@@ -170,7 +173,6 @@ public class GameService {
 
 		game.setLastPlayerToPlayTiles(player);
 		game.setLastTurn(turn);
-		game.setCanChallenge(true);
 		
 		updateNextPlayer(game);
 		update(game);
@@ -180,8 +182,10 @@ public class GameService {
 	public Game passTurn(String gameId, String playerId) {
 		final Game game = find(gameId);
 		verifyActive(game);
+		verifyActionState(game.getLastTurn());
 		final Player player = findPlayer(game, playerId);
 		isPlayerTurn(game, player);
+
 		Turn turn = turnService.passTurn(player);
 		
 		game.setLastTurn(turn);
@@ -196,6 +200,8 @@ public class GameService {
 		verifyActive(game);
 		final Player player = findPlayer(game, playerId);
 		isPlayerTurn(game, player);
+		verifyActionState(game.getLastTurn());
+
 		
 		final Rack rack = player.getRack();
 		final TileBag tileBag = game.getTileBag();
@@ -214,76 +220,89 @@ public class GameService {
 	}
 	
 	/* return true if one of the words is incorrect, else false if all words are valid */
-	public Game challenge(String gameId, String challengingPlayerId) {
+	public Game challenge(String gameId, String actingPlayerId, boolean challengeTurn, int version) {
 		final Game game = find(gameId);
-		verifyActiveOrEndgame(game);
-
 		final Turn lastTurn = game.getLastTurn();
-		final Player challengeTurnPlayer = findPlayer(game, challengingPlayerId);
+		final Player challengeTurnPlayer = findPlayer(game, actingPlayerId);
 		final Player playTilesPlayer = lastTurn.getPlayer();
+		verifyActiveOrEndgame(game);
+		verifyGameCurrent(game, version);
+		verifyChallengePlayers(challengeTurnPlayer, playTilesPlayer);
+		verifyChallengeState(lastTurn);		
+
+		if (challengeTurn) {
+			final List<String> words = lastTurn.getWordsPlayed();
+			boolean wordsValid = true;
+			for (String word: words) {
+				wordsValid &= dictionaryService.searchFor(word);
+				if (!wordsValid) {
+					break;
+				}
+			}
+
+			Player losingPlayer = null;
+			boolean challengeWon = !wordsValid;
+			if (challengeWon) {
+				losingPlayer = playTilesPlayer;
+				game.setState(GameState.ACTIVE);
 				
-		final List<String> words = lastTurn.getWordsPlayed();
-		boolean wordsValid = true;
-		for (String word: words) {
-			wordsValid &= dictionaryService.searchFor(word);
-			if (!wordsValid) {
-				break;
+			//Revert previous turn
+				//Remove tiles from board
+				List<Square> squares = game.getBoard().getSquares();
+				List<Tile> tiles =  new LinkedList<Tile>();
+				SortedSet<Square> playedSquares = lastTurn.getSquares();
+				playedSquares.forEach(square -> {
+					int index = square.getRow()*15 + square.getCol();
+					Square boardSquare = squares.get(index);
+					final PlayedTile playedTile = square.getTile();
+					final Tile tile = playedTile.isBlank() ? Tile.BLANK : Tile.from(playedTile.getLetter()); 
+					tiles.add(tile);
+					boardSquare.setTile(null);
+					squares.set(index, boardSquare);
+				});
+
+				//Determine the tiles drawn from the bag and return them
+				final Rack rack = losingPlayer.getRack();
+				List<Tile> drawnTiles = new ArrayList<>(tiles);
+				drawnTiles.addAll(rack.getTiles());
+				
+				rack.getPreviousTiles()
+					.forEach(tile -> drawnTiles.remove(tile));
+				tileBagService.returnTiles(game.getTileBag(), drawnTiles);
+
+				//Reset the players rack to the previous state 
+				rack.getTiles().clear();
+				rack.getTiles().addAll(rack.getPreviousTiles());
+				rack.getPreviousTiles().clear();
+				
+				int score = playTilesPlayer.getScore() - lastTurn.getScore();
+				playTilesPlayer.setScore(score);
+			} else {
+				losingPlayer = challengeTurnPlayer;
+				if (losingPlayer.equals(game.getActivePlayer())) {
+					updateNextPlayer(game);
+				} else {
+					int skippedTurnCount = losingPlayer.getSkipTurnCount() + 1;
+					losingPlayer.setSkipTurnCount(skippedTurnCount);
+				}
+				tileBagService.fillRack(game);
+				if (game.getState() == GameState.ENDGAME) {
+					endGame(game, playTilesPlayer);
+				}
+			}
+
+			 
+			final Turn thisTurn = turnService.challengeTurn(challengeTurnPlayer, losingPlayer);
+			game.setLastTurn(thisTurn);
+			update(game);
+			
+		} else {
+			turnService.forgoChallenge(lastTurn, actingPlayerId);
+			if (lastTurn.getSkippedChallengePlayerIds().size() == game.getPlayers().size() - 1) {
+				completeTurn(game);
+				update(game);
 			}
 		}
-
-		Player losingPlayer = null;
-		boolean challengeWon = !wordsValid;
-		if (challengeWon) {
-			losingPlayer = playTilesPlayer;
-			game.setState(GameState.ACTIVE);
-
-			
-		//Revert previous turn
-			//Remove tiles from board
-			List<Square> squares = game.getBoard().getSquares();
-			List<Tile> tiles =  new LinkedList<Tile>();
-			SortedSet<Square> playedSquares = lastTurn.getSquares();
-			playedSquares.forEach(square -> {
-				int index = square.getRow()*15 + square.getCol();
-				Square boardSquare = squares.get(index);
-				final PlayedTile playedTile = square.getTile();
-				final Tile tile = playedTile.isBlank() ? Tile.BLANK : Tile.from(playedTile.getLetter()); 
-				tiles.add(tile);
-				boardSquare.setTile(null);
-				squares.set(index, boardSquare);
-			});
-
-			//Determine the tiles drawn from the bag and return them
-			final Rack rack = losingPlayer.getRack();
-			List<Tile> drawnTiles = new ArrayList<>(tiles);
-			drawnTiles.addAll(rack.getTiles());
-			
-			rack.getPreviousTiles()
-				.forEach(tile -> drawnTiles.remove(tile));
-			tileBagService.returnTiles(game.getTileBag(), drawnTiles);
-
-			//Reset the players rack to the previous state 
-			rack.getTiles().clear();
-			rack.getTiles().addAll(rack.getPreviousTiles());
-			rack.getPreviousTiles().clear();
-			
-			int score = playTilesPlayer.getScore() - lastTurn.getScore();
-			playTilesPlayer.setScore(score);
-		} else {
-			losingPlayer = challengeTurnPlayer;
-		}
-		int skippedTurnCount = losingPlayer.getSkipTurnCount() + 1;
-		if (losingPlayer.equals(game.getActivePlayer())) {
-			updateNextPlayer(game);
-		} else {
-			losingPlayer.setSkipTurnCount(skippedTurnCount);
-		}
-		 
-		final Turn thisTurn = turnService.challengeTurn(lastTurn, challengeTurnPlayer, losingPlayer);
-		
-		game.setCanChallenge(false);
-		game.setLastTurn(thisTurn);
-		update(game);
 		
 		return game;
 	}
@@ -325,7 +344,7 @@ public class GameService {
 	private void verifyActiveOrEndgame(Game game) {
 		final GameState state = game.getState();
 		if (state != GameState.ACTIVE && state != GameState.ENDGAME) {
-			throw new GameNotActiveException("Cannot make a challenge in a game that is not started or already completed");
+			throw new GameNotActiveException("Cannot take an action in a game that is not started or already completed");
 		}
 	}
 	private void verifyPending(Game game) {
@@ -334,14 +353,37 @@ public class GameService {
 			throw new GameAlreadyStartedException();
 		}
 	}
+	private void verifyActionState(Turn lastTurn) {
+		if (lastTurn.getTurnState() == TurnState.AWAITING_CHALLENGE) {
+			throw new InvalidActionException("An action has already been played in this turn attempting to perform another action is invalid");
+		}
+	}
 	
+	private void verifyChallengeState(Turn lastTurn) {
+		if (lastTurn.getAction() != TurnAction.PLAY_TILES || lastTurn.getTurnState() != TurnState.AWAITING_CHALLENGE ) {
+			throw new InvalidActionException("A player can only challenge after tiles have been played");
+		}
+	}
+
+	private void verifyChallengePlayers(Player player1, Player player2) {
+		if (player1.equals(player2)) {
+			throw new InvalidActionException("A player cannot challenge their own turn");
+		}
+	}
+	
+	private void verifyGameCurrent(Game game, int version) {
+		if (game.getVersion() != version) {
+			throw new OutdatedGameException("Cannot take an action on an obsolete version of this game"); 
+		}
+	}
+
 	private void isPlayerTurn(Game game, Player player) {
 		Player activePlayer = game.getActivePlayer();
 		boolean isPlayerTurn = player == activePlayer;
 		if (!isPlayerTurn) {
 			throw new TurnOutofOrderException();
 		}
-	}
+	}	
 	
 	private Player findPlayer(Game game, String playerId) {
 		final List<Player> players = game.getPlayers();
@@ -376,6 +418,25 @@ public class GameService {
 		game.setActivePlayerIndex(activePlayerIndex);
 		game.setActivePlayer(player);
 	}
+	
+	@Async
+	public Object setChallengeTimer(Game game) {
+		int oldVersion = game.getVersion();
+		try {
+			Thread.sleep(22_000L);
+		} catch (InterruptedException ie) {
+			//TODO: log an error
+		}
+		
+		game = find(game.getId());
+		final Turn lastTurn = game.getLastTurn();
+		int newVersion = game.getVersion();
+		if (oldVersion == newVersion && lastTurn != null && lastTurn.getTurnState() == TurnState.AWAITING_CHALLENGE) {
+			completeTurn(game);
+			update(game);
+		}
+		return this;
+	}
 
 	@Async
 	public void endGame(String gameId, Player finalTurnPlayer) {
@@ -386,21 +447,32 @@ public class GameService {
 		}
 		final Game game = find(gameId);
 		if (game.getState() == GameState.ENDGAME && game.getTileBag().getBag().isEmpty()) {
-			game.setState(GameState.FINISHED);
-			int finalTurnPlayerScore = finalTurnPlayer.getScore();
-			for (Player player: game.getPlayers()) {
-				if (!player.equals(finalTurnPlayer)) {
-					int playerScore = player.getScore();
-					for (Tile tile: player.getRack().getTiles()) {
-						playerScore -= tile.getValue();
-						finalTurnPlayerScore += tile.getValue();
-					}
-					player.setScore(playerScore);
-				}
-			}
-			finalTurnPlayer.setScore(finalTurnPlayerScore);
-			update(game);
+			endGame(game, finalTurnPlayer);
 		}
+	}
+	
+	private void endGame(Game game, Player finalTurnPlayer) {
+		game.setState(GameState.FINISHED);
+		int finalTurnPlayerScore = finalTurnPlayer.getScore();
+		for (Player player: game.getPlayers()) {
+			//TODO fix this logic, it's whoever was leading before deductions at end
+			if (!player.equals(finalTurnPlayer)) {
+				int playerScore = player.getScore();
+				for (Tile tile: player.getRack().getTiles()) {
+					playerScore -= tile.getValue();
+					finalTurnPlayerScore += tile.getValue();
+				}
+				player.setScore(playerScore);
+			}
+		}
+		finalTurnPlayer.setScore(finalTurnPlayerScore);
+		update(game);
+	}
+	
+	private void completeTurn(Game game) {
+		tileBagService.fillRack(game);
+		//TODO: move this into turnState?
+		game.getLastTurn().setTurnState(TurnState.AWAITING_ACTION);
 	}
 	
 	private Game find(String gameId) {
