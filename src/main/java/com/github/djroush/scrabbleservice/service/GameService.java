@@ -291,7 +291,6 @@ public class GameService {
 				}
 			}
 
-			 
 			final Turn thisTurn = turnService.challengeTurn(challengeTurnPlayer, losingPlayer);
 			game.setLastTurn(thisTurn);
 			update(game);
@@ -299,8 +298,11 @@ public class GameService {
 		} else {
 			turnService.forgoChallenge(lastTurn, actingPlayerId);
 			if (lastTurn.getSkippedChallengePlayerIds().size() == game.getPlayers().size() - 1) {
-				completeTurn(game);
-				update(game);
+				if (game.getState() == GameState.ENDGAME) {
+					endGame(game, playTilesPlayer);
+				} else {
+					completeTurn(game);
+				}
 			}
 		}
 		
@@ -433,7 +435,6 @@ public class GameService {
 		int newVersion = game.getVersion();
 		if (oldVersion == newVersion && lastTurn != null && lastTurn.getTurnState() == TurnState.AWAITING_CHALLENGE) {
 			completeTurn(game);
-			update(game);
 		}
 		return this;
 	}
@@ -454,6 +455,12 @@ public class GameService {
 	private void endGame(Game game, Player finalTurnPlayer) {
 		game.setState(GameState.FINISHED);
 		int finalTurnPlayerScore = finalTurnPlayer.getScore();
+		
+		List<Player> players = game.getPlayers();
+		Player wasLeading = players.stream()
+			.reduce((player1, player2) -> player1.getScore() >= player2.getScore() ? player1 : player2)
+			.get();
+		
 		for (Player player: game.getPlayers()) {
 			//TODO fix this logic, it's whoever was leading before deductions at end
 			if (!player.equals(finalTurnPlayer)) {
@@ -466,6 +473,25 @@ public class GameService {
 			}
 		}
 		finalTurnPlayer.setScore(finalTurnPlayerScore);
+		
+	    int maxScore = -100;
+	    boolean needsTieBreaker = false;	
+	    for (int index = 0; index < game.getPlayers().size(); index++) {
+	    	Player player = game.getPlayers().get(index);
+			int playerScore = player.getScore();
+			if (playerScore > maxScore) {
+		        maxScore = playerScore;
+		        needsTieBreaker = false;
+		        game.setWinningPlayerIndex(index);
+		    } else if (playerScore == maxScore) {
+		        needsTieBreaker = true;
+		    }
+		}
+	    if (needsTieBreaker) {
+	    	game.setWinningPlayerIndex(players.indexOf(wasLeading));
+	    }
+		game.setActivePlayer(null);
+		
 		update(game);
 	}
 	
@@ -473,6 +499,7 @@ public class GameService {
 		tileBagService.fillRack(game);
 		//TODO: move this into turnState?
 		game.getLastTurn().setTurnState(TurnState.AWAITING_ACTION);
+		update(game);
 	}
 	
 	private Game find(String gameId) {

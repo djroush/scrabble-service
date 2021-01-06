@@ -231,6 +231,7 @@ public class ScrabbleGameController {
 		restGame.setPlayerIndex(playerIndex);
 		restGame.setState(game.getState().name());
 		restGame.setActivePlayerIndex(game.getActivePlayerIndex());
+		restGame.setWinningPlayerIndex(game.getWinningPlayerIndex());
 		int lastPlayerToPlayTilesIndex = gamePlayers.indexOf(game.getLastPlayerToPlayTiles());
 		restGame.setLastPlayerToPlayTilesIndex(lastPlayerToPlayTilesIndex);
 		playerGame.setGame(restGame);

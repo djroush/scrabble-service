@@ -23,4 +23,5 @@ public class Game {
 	private List<Player> players = new ArrayList<Player>(MAX_PLAYERS);
 	private Player activePlayer = null;
 	private Player lastPlayerToPlayTiles = null;
+	private Integer winningPlayerIndex = null;
 }

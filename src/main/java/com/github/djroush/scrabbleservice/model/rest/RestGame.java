@@ -12,4 +12,5 @@ public class RestGame {
 	public int playerIndex;
 	public int activePlayerIndex;
 	public int lastPlayerToPlayTilesIndex;
+	public Integer winningPlayerIndex;
 }
