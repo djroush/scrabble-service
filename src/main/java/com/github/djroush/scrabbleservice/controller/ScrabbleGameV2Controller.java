@@ -24,6 +24,7 @@ import com.github.djroush.scrabbleservice.model.rest.AddPlayerRequest;
 import com.github.djroush.scrabbleservice.model.rest.ChallengeRequest;
 import com.github.djroush.scrabbleservice.model.rest.ExchangeRequest;
 import com.github.djroush.scrabbleservice.model.rest.PlayTilesRequest;
+import com.github.djroush.scrabbleservice.model.rest.RestGame;
 import com.github.djroush.scrabbleservice.model.rest.RestPlayerGame;
 import com.github.djroush.scrabbleservice.model.rest.Square;
 import com.github.djroush.scrabbleservice.model.service.Game;
@@ -33,144 +34,145 @@ import com.github.djroush.scrabbleservice.service.ConverterService;
 import com.github.djroush.scrabbleservice.service.GameService;
 
 @RestController
-@RequestMapping("/scrabble/game")
-public class ScrabbleGameController {
-
+@RequestMapping("/v2/scrabble/game")
+public class ScrabbleGameV2Controller {
+	
 	@Autowired
 	private GameService gameService;
-	@Autowired
+	@Autowired 
 	private ConverterService converterService;
-
+	
 	@PostMapping(path = "")
 	public ResponseEntity<RestPlayerGame> createGame(@NonNull @RequestBody AddPlayerRequest requestBody) {
 		String playerName = requestBody.getName();
 
 		Game game = gameService.newGame(playerName);
-		String playerId = game.getPlayers().get(game.getPlayers().size() - 1).getId();
+		String playerId = game.getPlayers().get(game.getPlayers().size()-1).getId();
 		RestPlayerGame restPlayerGame = converterService.convertModels(game, playerId);
-		return ResponseEntity.ok(restPlayerGame);
+		return ResponseEntity.ok(restPlayerGame);  
 	}
 
 	@PostMapping(path = "/{gameId}")
-	public ResponseEntity<RestPlayerGame> joinGame(@PathVariable String gameId,
-			@RequestBody AddPlayerRequest requestBody) {
+	public ResponseEntity<RestPlayerGame> joinGame(@PathVariable String gameId, @RequestBody AddPlayerRequest requestBody) {
 		String playerName = requestBody.getName();
 		checkInputParameters(gameId, playerName);
 
-		Game game = gameService.addPlayer(gameId, playerName);
-		String playerId = game.getPlayers().get(game.getPlayers().size() - 1).getId();
+		Game game= gameService.addPlayer(gameId, playerName);
+		String playerId = game.getPlayers().get(game.getPlayers().size()-1).getId();
 		RestPlayerGame restPlayerGame = converterService.convertModels(game, playerId);
-		return ResponseEntity.ok(restPlayerGame);
+		return ResponseEntity.ok(restPlayerGame);   
+	}
+	
+	@GetMapping(path = "/{gameId}/{playerId}")
+	public ResponseEntity<RestPlayerGame> refreshGame(@PathVariable String gameId, @PathVariable String playerId,  
+			@RequestHeader(value="ETag",required=false) String eTag) {
+		checkInputParameters(gameId, playerId);
+		int previousVersion = -1;
+		if (eTag != null) {
+			try {
+				previousVersion = Integer.parseInt(eTag);
+			} catch (NumberFormatException nfe){}
+		}
+		Game game = gameService.refreshGame(gameId, playerId);
+		int currentVersion = game.getVersion();
+		if (previousVersion == currentVersion) {
+			return ResponseEntity
+			.status(HttpStatus.NOT_MODIFIED)
+			.header("ETag", String.valueOf(game.getVersion()))
+			.build();
+		} else {
+			RestPlayerGame restPlayerGame = converterService.convertModels(game, playerId);
+
+			return ResponseEntity
+			.status(HttpStatus.OK)
+			.header("ETag", String.valueOf(game.getVersion()))
+			.body(restPlayerGame);
+		}
 	}
 
-//	@GetMapping(path = "/{gameId}/{playerId}")
-//	public ResponseEntity<RestPlayerGame> refreshGame(@PathVariable String gameId, @PathVariable String playerId,  
-//			@RequestHeader(value="ETag",required=false) String eTag) {
-//		checkInputParameters(gameId, playerId);
-//		int previousVersion = -1;
-//		if (eTag != null) {
-//			try {
-//				previousVersion = Integer.parseInt(eTag);
-//			} catch (NumberFormatException nfe){}
-//		}
-//		Game game = gameService.refreshGame(gameId, playerId);
-//		int currentVersion = game.getVersion();
-//		if (previousVersion == currentVersion) {
-//			return ResponseEntity
-//			.status(HttpStatus.NOT_MODIFIED)
-//			.header("ETag", String.valueOf(game.getVersion()))
-//			.build();
-//		} else {
-//			RestPlayerGame restPlayerGame = converterService.convertModels(game, playerId);
-//
-//			return ResponseEntity
-//			.status(HttpStatus.OK)
-//			.header("ETag", String.valueOf(game.getVersion()))
-//			.body(restPlayerGame);
-//		}
-//	}
-
 	@DeleteMapping(path = "/{gameId}/{playerId}")
-	public ResponseEntity<RestPlayerGame> leaveGame(@PathVariable String gameId, @PathVariable String playerId) {
+	public ResponseEntity<RestGame> leaveGame(@PathVariable String gameId, @PathVariable String playerId) {
 		checkInputParameters(gameId, playerId);
-
+		
 		Game game = gameService.removePlayer(gameId, playerId);
-		RestPlayerGame restPlayerGame = converterService.convertModels(game, playerId);
-		return ResponseEntity.ok(restPlayerGame);
+		RestGame restGame = converterService.convertSimple(game, playerId);
+		return ResponseEntity.ok(restGame);   
 	}
 
 	@PostMapping(path = "/{gameId}/{playerId}/start")
-	public ResponseEntity<RestPlayerGame> startGame(@PathVariable String gameId, @PathVariable String playerId) {
+	public ResponseEntity<RestGame> startGame(@PathVariable String gameId, @PathVariable String playerId) {
 		checkInputParameters(gameId, playerId);
 		Game game = gameService.start(gameId, playerId);
-		RestPlayerGame restPlayerGame = converterService.convertModels(game, playerId);
-
-		return ResponseEntity.ok(restPlayerGame);
+		RestGame restGame = converterService.convertSimple(game, playerId);
+		
+		return ResponseEntity.ok(restGame);   
 	}
 
 	@PostMapping(path = "/{gameId}/{playerId}/play", consumes = "application/json")
-	public ResponseEntity<RestPlayerGame> play(@PathVariable String gameId, @PathVariable String playerId,
+	public ResponseEntity<RestGame> play(@PathVariable String gameId, @PathVariable String playerId,
 			@RequestBody PlayTilesRequest playTilesRequest) {
 		checkInputParameters(gameId, playerId);
-
+		
 		final List<Square> squares = playTilesRequest.getSquares();
 		SortedSet<Square> sortedSquares = new TreeSet<Square>(squares);
 		Game game = gameService.playTiles(gameId, playerId, sortedSquares);
-		// @Async methods only work when called from outside their own class
+		//@Async methods only work when called from outside their own class
 		if (game.getState() == GameState.ENDGAME) {
 			gameService.endGame(gameId, game.getLastTurn().getPlayer());
 		} else {
 			gameService.setChallengeTimer(game);
 		}
 
-		RestPlayerGame restPlayerGame = converterService.convertModels(game, playerId);
-		return ResponseEntity.ok(restPlayerGame);
+		RestGame restGame = converterService.convertSimple(game, playerId);
+		return ResponseEntity.ok(restGame);
 	}
-
+	
 	@PostMapping(path = "/{gameId}/{playerId}/exchange", consumes = "application/json")
-	public ResponseEntity<RestPlayerGame> exchange(@PathVariable String gameId, @PathVariable String playerId,
+	public ResponseEntity<RestGame> exchange(@PathVariable String gameId, @PathVariable String playerId,
 			@RequestBody ExchangeRequest exchangeRequest) throws IOException {
 		checkInputParameters(gameId, playerId);
-
+		
 		final List<Tile> tiles = exchangeRequest.getTiles().stream()
-				.map(t -> t.isBlank() ? Tile.BLANK : Tile.from(t.getLetter().charAt(0))).collect(Collectors.toList());
+				.map(t -> t.isBlank() ? Tile.BLANK : Tile.from(t.getLetter().charAt(0)))
+				.collect(Collectors.toList());
 		Game game = gameService.exchange(gameId, playerId, tiles);
-		RestPlayerGame restPlayerGame = converterService.convertModels(game, playerId);
-		return ResponseEntity.ok(restPlayerGame);
+		RestGame restGame = converterService.convertSimple(game, playerId);
+		return ResponseEntity.ok(restGame);
 	}
 
 	@PostMapping(path = "/{gameId}/{playerId}/pass", consumes = "application/json")
-	public ResponseEntity<RestPlayerGame> passTurn(@PathVariable String gameId, @PathVariable String playerId) {
+	public ResponseEntity<RestGame> passTurn(@PathVariable String gameId, @PathVariable String playerId) {
 		checkInputParameters(gameId, playerId);
-
+		
 		Game game = gameService.passTurn(gameId, playerId);
-		RestPlayerGame restPlayerGame = converterService.convertModels(game, playerId);
-		return ResponseEntity.ok(restPlayerGame);
+		RestGame restGame = converterService.convertSimple(game, playerId);
+		return ResponseEntity.ok(restGame);
 	}
-
-	@PostMapping(path = "/{gameId}/{playerId}/challenge")
-	public ResponseEntity<RestPlayerGame> challenge(@PathVariable String gameId, @PathVariable String playerId,
+	
+	@PostMapping(path= "/{gameId}/{playerId}/challenge") 
+	public ResponseEntity<RestGame> challenge(@PathVariable String gameId, @PathVariable String playerId,
 			@RequestBody ChallengeRequest challengeRequest) {
 		checkInputParameters(gameId, playerId);
 		boolean challengeTurn = challengeRequest.isChallengeTurn();
 		int version = challengeRequest.getVersion();
 		final Game game = gameService.challenge(gameId, playerId, challengeTurn, version);
-		RestPlayerGame restPlayerGame = converterService.convertModels(game, playerId);
-		return ResponseEntity.ok(restPlayerGame);
+		RestGame restGame = converterService.convertSimple(game, playerId);
+		return ResponseEntity.ok(restGame);
 	}
 
-	@PostMapping(path = "/{gameId}/{playerId}/forfeit")
-	public ResponseEntity<RestPlayerGame> forfeit(@PathVariable String gameId, @PathVariable String playerId) {
+	@PostMapping(path= "/{gameId}/{playerId}/forfeit")
+	public ResponseEntity<RestGame> forfeit(@PathVariable String gameId, @PathVariable String playerId) {
 		checkInputParameters(gameId, playerId);
 		final Game game = gameService.forfeit(gameId, playerId);
-		RestPlayerGame restPlayerGame = converterService.convertModels(game, playerId);
-		return ResponseEntity.ok(restPlayerGame);
+		RestGame restGame = converterService.convertSimple(game, playerId);
+		return ResponseEntity.ok(restGame);
 	}
-
+	
 	private void checkInputParameters(String gameId, String playerId) {
 		if (gameId == null || gameId.isBlank() || "".equals(gameId)) {
 			throw new InvalidInputException();
 		}
 	}
+	
 
 }

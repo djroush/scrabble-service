@@ -51,6 +51,8 @@ public class GameService {
 	private TileBagService tileBagService;
 	@Autowired 
 	private TurnService turnService;
+	@Autowired
+	private SseService sseService;
 	
 	@Autowired
 	private GameRepository gameRepository;
@@ -136,6 +138,8 @@ public class GameService {
 		game.setActivePlayerIndex(0);
 		game.setActivePlayer(firstPlayer);
 		game.setState(GameState.ACTIVE);
+		
+		sseService.handleKeepAlive(gameId);
 		
 		update(game);
 		return game;
@@ -449,6 +453,7 @@ public class GameService {
 		final Game game = find(gameId);
 		if (game.getState() == GameState.ENDGAME && game.getTileBag().getBag().isEmpty()) {
 			endGame(game, finalTurnPlayer);
+			sseService.completeGame(game);
 		}
 	}
 	
@@ -517,19 +522,9 @@ public class GameService {
 	
 	private Game update(Game game) {
 		game.setVersion(game.getVersion()+1);
-		Turn turn = game.getLastTurn();
-		//This will be null on the first turn
-		if (turn != null) {
-			if (turn.getScore() == 0 && (turn.getAction() != TurnAction.PLAY_TILES)) {
-				//TODO: This needs to be adjusted for passes as well, probably need a second consecutiveScorelessTurns counter 
-//				int consecutiveScorelessTurns = game.getConsecutiveScorelessTurns();
-//				game.setConsecutiveScorelessTurns(consecutiveScorelessTurns+1);
-//				if (consecutiveScorelessTurns == 7) {
-//					game.setState(GameState.FINISHED);
-//				}
-			}
-		}
+		//TODO: add logic 7 consecutive passes ends game
 		gameRepository.update(game);
+		sseService.publishUpdate(game);
 		return game;
 	}
 }

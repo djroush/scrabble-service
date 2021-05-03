@@ -15,7 +15,6 @@ import com.github.djroush.scrabbleservice.model.service.TileBag;
 @Service
 public class TileBagService {
 
-
 	public List<Tile> fillRack(Game game) {
 		TileBag tileBag = game.getTileBag();
 		Optional<Rack> unfullRack = game.getPlayers().stream()
@@ -33,7 +32,6 @@ public class TileBagService {
 		}
 		return Collections.emptyList();
 	}
-
 	
 	public List<Tile> fillRack(TileBag tileBag, Rack rack) {
 		int missingTilesCount = Rack.MAX_TILES - rack.getTiles().size(); 
