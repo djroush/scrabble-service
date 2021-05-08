@@ -12,7 +12,7 @@ import reactor.core.publisher.Mono;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 100)
-public class AccessControlFilter implements WebFilter {
+public class AccessControlWebFluxFilter implements WebFilter {
 	@Override
 	public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
 		final HttpHeaders headers = exchange.getResponse().getHeaders(); 

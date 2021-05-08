@@ -16,9 +16,12 @@ import org.springframework.stereotype.Service;
 import com.github.djroush.scrabbleservice.exception.GameAlreadyStartedException;
 import com.github.djroush.scrabbleservice.exception.GameFullException;
 import com.github.djroush.scrabbleservice.exception.GameNotActiveException;
+import com.github.djroush.scrabbleservice.exception.GameNotActiveOrEndgameException;
 import com.github.djroush.scrabbleservice.exception.IncorrectPlayerCountException;
 import com.github.djroush.scrabbleservice.exception.InvalidActionException;
+import com.github.djroush.scrabbleservice.exception.InvalidChallengeActionException;
 import com.github.djroush.scrabbleservice.exception.OutdatedGameException;
+import com.github.djroush.scrabbleservice.exception.SelfChallengeException;
 import com.github.djroush.scrabbleservice.exception.TurnOutofOrderException;
 import com.github.djroush.scrabbleservice.exception.UnknownGameException;
 import com.github.djroush.scrabbleservice.exception.UnknownPlayerException;
@@ -51,6 +54,8 @@ public class GameService {
 	private TileBagService tileBagService;
 	@Autowired 
 	private TurnService turnService;
+	@Autowired
+	private SseService sseService;
 	
 	@Autowired
 	private GameRepository gameRepository;
@@ -136,6 +141,8 @@ public class GameService {
 		game.setActivePlayerIndex(0);
 		game.setActivePlayer(firstPlayer);
 		game.setState(GameState.ACTIVE);
+		
+		sseService.handleKeepAlive(gameId);
 		
 		update(game);
 		return game;
@@ -340,13 +347,13 @@ public class GameService {
 	private void verifyActive(Game game) {
 		final GameState state = game.getState();
 		if (state != GameState.ACTIVE) {
-			throw new GameNotActiveException("Cannot take a turn in a game that is not currently active");
+			throw new GameNotActiveException();
 		}
 	}
 	private void verifyActiveOrEndgame(Game game) {
 		final GameState state = game.getState();
 		if (state != GameState.ACTIVE && state != GameState.ENDGAME) {
-			throw new GameNotActiveException("Cannot take an action in a game that is not started or already completed");
+			throw new GameNotActiveOrEndgameException();
 		}
 	}
 	private void verifyPending(Game game) {
@@ -357,25 +364,25 @@ public class GameService {
 	}
 	private void verifyActionState(Turn lastTurn) {
 		if (lastTurn.getTurnState() == TurnState.AWAITING_CHALLENGE) {
-			throw new InvalidActionException("An action has already been played in this turn attempting to perform another action is invalid");
+			throw new InvalidActionException();
 		}
 	}
 	
 	private void verifyChallengeState(Turn lastTurn) {
 		if (lastTurn.getAction() != TurnAction.PLAY_TILES || lastTurn.getTurnState() != TurnState.AWAITING_CHALLENGE ) {
-			throw new InvalidActionException("A player can only challenge after tiles have been played");
+			throw new InvalidChallengeActionException();
 		}
 	}
 
 	private void verifyChallengePlayers(Player player1, Player player2) {
 		if (player1.equals(player2)) {
-			throw new InvalidActionException("A player cannot challenge their own turn");
+			throw new SelfChallengeException();
 		}
 	}
 	
 	private void verifyGameCurrent(Game game, int version) {
 		if (game.getVersion() != version) {
-			throw new OutdatedGameException("Cannot take an action on an obsolete version of this game"); 
+			throw new OutdatedGameException(); 
 		}
 	}
 
@@ -449,6 +456,7 @@ public class GameService {
 		final Game game = find(gameId);
 		if (game.getState() == GameState.ENDGAME && game.getTileBag().getBag().isEmpty()) {
 			endGame(game, finalTurnPlayer);
+			sseService.completeGame(game);
 		}
 	}
 	
@@ -517,19 +525,9 @@ public class GameService {
 	
 	private Game update(Game game) {
 		game.setVersion(game.getVersion()+1);
-		Turn turn = game.getLastTurn();
-		//This will be null on the first turn
-		if (turn != null) {
-			if (turn.getScore() == 0 && (turn.getAction() != TurnAction.PLAY_TILES)) {
-				//TODO: This needs to be adjusted for passes as well, probably need a second consecutiveScorelessTurns counter 
-//				int consecutiveScorelessTurns = game.getConsecutiveScorelessTurns();
-//				game.setConsecutiveScorelessTurns(consecutiveScorelessTurns+1);
-//				if (consecutiveScorelessTurns == 7) {
-//					game.setState(GameState.FINISHED);
-//				}
-			}
-		}
+		//TODO: add logic 7 consecutive passes ends game
 		gameRepository.update(game);
+		sseService.publishUpdate(game);
 		return game;
 	}
 }

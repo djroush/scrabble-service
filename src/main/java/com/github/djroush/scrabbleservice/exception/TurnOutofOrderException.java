@@ -3,7 +3,7 @@ package com.github.djroush.scrabbleservice.exception;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
-@ResponseStatus(HttpStatus.BAD_REQUEST)
+@ResponseStatus(value=HttpStatus.BAD_REQUEST, reason="A player cannot play tiles until it is their turn")
 public class TurnOutofOrderException extends RuntimeException {
 	private static final long serialVersionUID = -7511702408308157500L;
 
