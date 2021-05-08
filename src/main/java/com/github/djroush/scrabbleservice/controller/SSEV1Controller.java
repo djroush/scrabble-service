@@ -12,8 +12,8 @@ import com.github.djroush.scrabbleservice.exception.InvalidInputException;
 import com.github.djroush.scrabbleservice.service.SseService;
 
 @Controller
-@RequestMapping("/scrabble/sse/")
-public class SSEController {
+@RequestMapping("/v1/scrabble/sse/")
+public class SSEV1Controller {
 
   @Autowired
   private SseService sseService;
